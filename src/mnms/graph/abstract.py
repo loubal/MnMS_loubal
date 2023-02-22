@@ -1,6 +1,7 @@
 from abc import abstractmethod
 from collections import defaultdict
 from typing import Optional, Dict, List, Type, Callable
+import json
 
 from hipop.graph import OrientedGraph
 
@@ -48,6 +49,8 @@ class AbstractLayer(CostFunctionLayer):
         self.map_reference_links: Dict[str, List[str]] = dict()
         self.map_reference_nodes: Dict[str, str] = dict()
 
+        self.shortest_paths = None
+
         # self._costs_functions: Dict[Dict[str, Callable]] = defaultdict(dict)
 
         self.mobility_services: Dict[str, AbstractMobilityService] = dict()
@@ -63,6 +66,13 @@ class AbstractLayer(CostFunctionLayer):
         service.layer = self
         service.fleet = FleetManager(self._veh_type, service.id)
         self.mobility_services[service.id] = service
+
+    def load_shortest_paths(self, file):
+        """Method that loads pre computed shortest paths between all pairs of nodes
+        of the layer's graph.
+        """
+        with open(file, 'r') as f:
+            self.shortest_paths = json.load(f)
 
     # def add_cost_function(self, mobility_service: str, cost_name: str, cost_function: Callable[[Dict[str, float]], float]):
     #     self._costs_functions[mobility_service][cost_name] = cost_function
