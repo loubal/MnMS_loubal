@@ -32,14 +32,18 @@ roads.register_stop('S1', '3_4', 0.9)
 roads.register_stop('S2', '4_5', 0.9)
 
 # Vehicle sharing mobility service
-emoped = OnVehicleSharingMobilityService("emoped", dt_matching=0)
+emoped1 = OnVehicleSharingMobilityService("emoped1", dt_matching=0)
+emoped2 = OnVehicleSharingMobilityService("emoped2", dt_matching=0)
 
-emoped_layer = SharedVehicleLayer(roads, 'emoped_layer', Bike, 7, services=[emoped],
+emoped_layer = SharedVehicleLayer(roads, 'emoped_layer', Bike, 7, services=[emoped1, emoped2],
                                   observer=CSVVehicleObserver("emoped.csv"))
 
 # Add stations
-emoped.create_station('ES1', '0', 20, 5)
-emoped.create_station('ES2', '4', 20, 5)
+emoped1.create_station('ES1_1', '0', 20, 5)
+emoped1.create_station('ES1_2', '4', 20, 5)
+
+emoped2.create_station('ES2_1', '1', 20, 5)
+emoped2.create_station('ES2_2', '5', 20, 5)
 
 bus_service = PublicTransportMobilityService('Bus')
 pblayer = PublicTransportLayer(roads, 'BUS', Bus, 5, services=[bus_service],
@@ -64,15 +68,15 @@ mlgraph.connect_origindestination_layers(200)
 # Demand
 
 print('init demand')
-demand = BaseDemandManager([User("U0", [0, 0], [0, 5000], Time("07:00:30"), ['Bus','emoped']),
-                            User("U1", [0, 0], [0, 5000], Time("07:00:30"), ['Bus']),
-                            User("U2", [0, 0], [0, 5000], Time("07:00:30"))])
+demand = BaseDemandManager([User("U0", [0, 0], [0, 5000], Time("07:00:30"), ['emoped1', 'Bus'])])  # ,
+# User("U1", [0, 0], [0, 5000], Time("07:00:30"), ['Bus']),
+# User("U2", [0, 0], [0, 5000], Time("07:00:30"), ['emoped1', 'Bus'])])
 demand.add_user_observer(CSVUserObserver('user.csv'))
 
 # Decison Model
 
-# decision_model = LogitDecisionModel(mlgraph, outfile="path.csv")
-decision_model = DummyDecisionModel(mlgraph, outfile="path.csv")
+decision_model = DummyDecisionModel(mlgraph, outfile="path.csv", cost='gen_cost')
+
 
 # Flow Motor
 
@@ -80,6 +84,7 @@ def mfdspeed(dacc):
     dspeed = {'BUS': 5,
               'BIKE': 7}
     return dspeed
+
 
 flow_motor = MFDFlowMotor('flow.csv')
 flow_motor.add_reservoir(Reservoir(roads.zones["RES"], ['BUS', 'BIKE'], mfdspeed))
@@ -89,10 +94,44 @@ supervisor = Supervisor(mlgraph,
                         flow_motor,
                         decision_model)
 
+
+# Define link based costs
+def gc_emoped(mlgraph, link, costs):
+    gc = (0.33 / 60 + 20 / 3600) * link.length / costs['emoped1']['speed']
+    return gc
+
+
+def gc_bus(mlgraph, link, costs):
+    gc = 4 + 20 / 3600 * link.length / costs['Bus']['speed']
+    return gc
+
+
+supervisor._mlgraph.add_cost_function(layer_id='emoped_layer', cost_name='gen_cost',
+                                      cost_function=gc_emoped)
+supervisor._mlgraph.add_cost_function(layer_id='BUS', cost_name='gen_cost',
+                                      cost_function=gc_bus)
+
+
+# Add link independent service cost
+
+def gc_additional(path):
+    final_cost = path.path_cost
+    if 'emoped1' in path.mobility_services:
+        final_cost += 1
+    if 'emoped2' in path.mobility_services:
+        final_cost += 1
+    if 'Bus' in path.mobility_services:
+        final_cost += 2
+    return final_cost
+
+# supervisor._mlgraph.add_additional_cost_function('gen_cost', gc_additional) # TODO: add additional cost
+
 supervisor.run(Time("07:00:00"),
-               Time("07:50:00"),
+               Time("08:00:00"),
                Dt(seconds=10),
                10)
+
+###  Plot
 
 from matplotlib import pyplot as plt
 
@@ -105,9 +144,14 @@ for id in roads.stops:
     stop = roads.stops[id]
     plt.plot(stop.absolute_position[0], stop.absolute_position[1], 'ro')
 
-for id in emoped.stations:
-    station = emoped.stations[id]
+for id in emoped1.stations:
+    station = emoped1.stations[id]
     node = roads.nodes[station.node]
-    plt.plot(node.position[0], node.position[1], 'sg')
+    plt.plot(node.position[0], node.position[1], 'xg')
+
+for id in emoped2.stations:
+    station = emoped2.stations[id]
+    node = roads.nodes[station.node]
+    plt.plot(node.position[0], node.position[1], 'xm')
 
 plt.show()
