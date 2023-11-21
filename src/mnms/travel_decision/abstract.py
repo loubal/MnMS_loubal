@@ -823,6 +823,7 @@ class AbstractDecisionModel(ABC):
         ### Path selection
         self.path_selection(users_paths, tcurrent)
 
+
     def compute_path(self, origin: str, destination: str, accessible_layers: Set[str], chosen_services: Dict[str, str]):
         return dijkstra(self._mlgraph.graph,
                         origin,

@@ -102,7 +102,7 @@ def gc_emoped(mlgraph, link, costs):
 
 
 def gc_bus(mlgraph, link, costs):
-    gc = 4 + 20 / 3600 * link.length / costs['Bus']['speed']
+    gc = 20 / 3600 * link.length / costs['Bus']['speed']
     return gc
 
 
