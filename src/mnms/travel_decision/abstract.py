@@ -15,7 +15,7 @@ from mnms.time import Time
 from mnms.tools.dict_tools import sum_dict
 from mnms.tools.exceptions import PathNotFound
 
-from hipop.shortest_path import parallel_k_shortest_path, dijkstra, compute_path_length
+from hipop.shortest_path import parallel_k_shortest_path, dijkstra, compute_path_length, parallel_intermodal_dijkstra
 
 log = create_logger(__name__)
 
@@ -330,8 +330,8 @@ class AbstractDecisionModel(ABC):
         return all_users"""
 
     def __call__(self, new_users: List[User], tcurrent: Time):
-        assert len(self._layers_groups) > 0, 'Travel decision launched in per_layers_groups type '\
-            'without any layers groups defined...'
+        #assert len(self._layers_groups) > 0, 'Travel decision launched in per_layers_groups type '\
+        #    'without any layers groups defined...'
         all_users = self.call_per_layers_groups(new_users, tcurrent)
         return all_users
 
@@ -344,137 +344,108 @@ class AbstractDecisionModel(ABC):
 
         if len(all_users)>0:
             users_paths = {u.id: {'user': u, 'paths': [], 'layers_groups': []} for u in all_users}
+            # mandatory_layers_groups = ({'CAR'}, {'TRAMLayer', 'METROLayer'})
+            mandatory_layers_groups = ({"emoped_layer"}, {'BUS'})
             # Compute shortest path per layer group
-            for layer_group, mandatory_layers_groups in self._layers_groups:
-                if mandatory_layers_groups is None:
-                    # Compute shortest path on the intersection between layers of the
-                    # layer group and available layers for the user, if this intersection
-                    # is empty, do not compute shortest path for this user on this layer group
-                    users_ids, origins, destinations, available_layers, chosen_services = _process_shortest_path_inputs_layer_group(self._mlgraph, all_users, layer_group)
-                    paths = parallel_k_shortest_path(self._mlgraph.graph,
-                                                     origins,
-                                                     destinations,
-                                                     self._cost,
-                                                     chosen_services,
-                                                     available_layers,
-                                                     self._min_diff_dist,
-                                                     self._max_diff_dist,
-                                                     1,
-                                                     self._thread_number)
-                    for i, kpath in enumerate(paths):
-                        user = users_paths[users_ids[i]]['user']
-                        path_index = len(users_paths[users_ids[i]]['paths'])
-                        p = kpath[0] # only one path computed so we do not forget any path
-                        if p[0]:
-                            p = Path(path_index, p[1], p[0])
-                            p.construct_layers(gnodes, pzones=self._mlgraph.pricing_zones)
-                            # Check that path layers are all available for this user
-                            # (this check is useful for path of type ...-> CARnode - TRANSIT -> BUSnode - TRANSIT -> DESTINATIONnode for e.g.
-                            # where BUS is not an available layer, path do not pass through BUS links but only one BUSnode
-                            if set([lid for lid,slice in p.layers]).issubset(available_layers[i]):
-                                user_chosen_services = chosen_services[i]
-                                user_mobility_services = [user_chosen_services[layer_id] for layer_id, slice_nodes in p.layers]
-                                p.mobility_services = user_mobility_services
-                                service_costs = sum_cost_dict(*(self._mlgraph.layers[layer].mobility_services[service].service_level_costs(p.nodes[node_inds]) for (layer, node_inds), service in zip(p.layers, p.mobility_services)))
-                                p.service_costs = service_costs
-                                # Add eventual additional costs
-                                if self._cost in list(self._mlgraph._additional_cost_functions.keys()):
-                                    p.update_cost(self._mlgraph._additional_cost_functions[self._cost](p))
-                                users_paths[users_ids[i]]['paths'].append(p)
-                                users_paths[users_ids[i]]['layers_groups'].append((layer_group,mandatory_layers_groups))
-                            else:
-                                log.warning(f"Incorrect path ignored for user {user.id} in layers group {available_layers[i]}: {p}")
+            for layer_group in ({"emoped_layer"}, {'BUS'}): #({'CAR'}, {'TRAMLayer', 'METROLayer'}):
+                # Compute shortest path on the intersection between layers of the
+                # layer group and available layers for the user, if this intersection
+                # is empty, do not compute shortest path for this user on this layer group
+                users_ids, origins, destinations, available_layers, chosen_services = _process_shortest_path_inputs_layer_group(self._mlgraph, all_users, layer_group)
+                paths = parallel_k_shortest_path(self._mlgraph.graph,
+                                                 origins,
+                                                 destinations,
+                                                 self._cost,
+                                                 chosen_services,
+                                                 available_layers,
+                                                 self._min_diff_dist,
+                                                 self._max_diff_dist,
+                                                 1,
+                                                 self._thread_number)
+                for i, kpath in enumerate(paths):
+                    user = users_paths[users_ids[i]]['user']
+                    path_index = len(users_paths[users_ids[i]]['paths'])
+                    p = kpath[0] # only one path computed so we do not forget any path
+                    if p[0]:
+                        p = Path(path_index, p[1], p[0])
+                        p.construct_layers(gnodes)#, pzones=self._mlgraph.pricing_zones)
+                        # Check that path layers are all available for this user
+                        # (this check is useful for path of type ...-> CARnode - TRANSIT -> BUSnode - TRANSIT -> DESTINATIONnode for e.g.
+                        # where BUS is not an available layer, path do not pass through BUS links but only one BUSnode
+                        if set([lid for lid,slice in p.layers]).issubset(available_layers[i]):
+                            user_chosen_services = chosen_services[i]
+                            user_mobility_services = [user_chosen_services[layer_id] for layer_id, slice_nodes in p.layers]
+                            p.mobility_services = user_mobility_services
+                            #service_costs = sum_cost_dict(*(self._mlgraph.layers[layer].mobility_services[service].service_level_costs(p.nodes[node_inds]) for (layer, node_inds), service in zip(p.layers, p.mobility_services)))
+                            #p.service_costs = service_costs
+                            # Add eventual additional costs
+                            #if self._cost in list(self._mlgraph._additional_cost_functions.keys()):
+                            #    p.update_cost(self._mlgraph._additional_cost_functions[self._cost](p))
+                            users_paths[users_ids[i]]['paths'].append(p)
+                            users_paths[users_ids[i]]['layers_groups'].append((layer_group,mandatory_layers_groups))
                         else:
-                            log.warning(f"Path not found for {user.id} on layers group: {available_layers[i]}")
-                else:
-                    # Compute intermodal shortest path for users that can access at least
-                    # one of the layer defined in mandatory_layers_groups[0] and and at least
-                    # one of the layer defined in mandatory_layers_groups[1], if user cannot
-                    # access any, do not compute shortest path for this user of this layer group
-                    # with mandatory intermodality
-                    users_ids, origins, destinations, available_layers, chosen_services = \
-                        _process_shortest_path_inputs_layer_group(self._mlgraph, all_users, layer_group)
-                    paths = parallel_intermodal_dijkstra(self._mlgraph.graph,
-                                                     origins,
-                                                     destinations,
-                                                     chosen_services,
-                                                     self._cost,
-                                                     self._thread_number,
-                                                     mandatory_layers_groups,
-                                                     available_layers)
-                    for i, p in enumerate(paths):
-                        user = users_paths[users_ids[i]]['user']
-                        path_index = len(users_paths[users_ids[i]]['paths'])
-                        if p[0]:
-                            p = Path(path_index, p[1], p[0])
-                            p.construct_layers(gnodes, pzones=self._mlgraph.pricing_zones)
-                            ### Check that path compute respects the mandatory intermodality
-                            #links_layers = p.get_links_layers(gnodes)
-                            #checked1 = False
-                            #for mandatory_l1 in list(mandatory_layers_groups[0]):
-                            #    if mandatory_l1 in links_layers:
-                            #        checked1 = True
-                            #checked2 = False
-                            #for mandatory_l2 in list(mandatory_layers_groups[1]):
-                            #    if mandatory_l2 in links_layers:
-                            #        checked2 = True
-                            #if (not checked1) or (not checked2):
-                            #    # Path is not truly intermodal !
-                            #    log.warning(f'Incorrect intermodal path found for {user.id}: {p}')
-                            # Check that path layers are all available for this user
-                            # (this check is useful for path of type ...-> CARnode - TRANSIT -> BUSnode - TRANSIT -> DESTINATIONnode for e.g.
-                            # where BUS is not an available layer, path do not pass through BUS links but only one BUSnode
-                            ### Check that the mandatory layers groups are not foolish
-                            #   for this user
-                            #   e.g. AV till a bus station then bus for only one section,
-                            #   and AV again to travel the bus link the other way round and
-                            #   get to destination. To prevent this:
-                            #   -> 1) we retrieve among computed paths,
-                            #   the one computed on the first mandatory layers group, if
-                            #   it does not pass through any layer link (only transit)
-                            #   it means that it is foolish for user to try to pass
-                            #   through this layers group. Same for the second mandatory
-                            #   layers group.
-                            #   -> 2) if the intermodal path passes several times on the
-                            #   same node, it means that everything between is superflu,
-                            #   then the path is not valid anymore.
-                            intermodal_path_valid = True
-                            # Check 1)
-                            for mandatory_layers_group in [mandatory_layers_groups[0],mandatory_layers_groups[1]]:
-                                # Find the path computed on this layer group only
-                                try:
-                                    idx = users_paths[users_ids[i]]['layers_groups'].index((mandatory_layers_group, None))
-                                    control_path = users_paths[users_ids[i]]['paths'][idx]
-                                    if mandatory_layers_group.isdisjoint(set(control_path.get_links_layers(gnodes))):
-                                        log.warning(f'Intermodal path {p} doest not check quality criteria, ignored')
-                                        intermodal_path_valid = False
-                                except ValueError:
-                                    # No path computed for this layer group means no check possible
-                                    # Since it probably means that the path computed on this layer
-                                    # group was not valid, the intermodal path using this group layer
-                                    # is ignored
-                                    log.warning(f'No path computed for layers group {mandatory_layers_group} '\
-                                        f"for user {user.id} ({users_paths[users_ids[i]]['layers_groups']}), cannot check validity of intermodal path so ignore it")
+                            log.warning(f"Incorrect path ignored for user {user.id} in layers group {available_layers[i]}: {p}")
+                    else:
+                        log.warning(f"Path not found for {user.id} on layers group: {available_layers[i]}")
+
+                # Compute intermodal shortest path for users that can access at least
+                # one of the layer defined in mandatory_layers_groups[0] and and at least
+                # one of the layer defined in mandatory_layers_groups[1], if user cannot
+                # access any, do not compute shortest path for this user of this layer group
+                # with mandatory intermodality
+                users_ids, origins, destinations, available_layers, chosen_services = \
+                    _process_shortest_path_inputs_layer_group(self._mlgraph, all_users, layer_group)
+                paths = parallel_intermodal_dijkstra(self._mlgraph.graph,
+                                                 origins,
+                                                 destinations,
+                                                 chosen_services,
+                                                 self._cost,
+                                                 self._thread_number,
+                                                 mandatory_layers_groups,
+                                                 available_layers)
+                for i, p in enumerate(paths):
+                    user = users_paths[users_ids[i]]['user']
+                    path_index = len(users_paths[users_ids[i]]['paths'])
+                    if p[0]:
+                        p = Path(path_index, p[1], p[0])
+                        p.construct_layers(gnodes, pzones=self._mlgraph.pricing_zones)
+                        intermodal_path_valid = True
+                        # Check 1)
+                        for mandatory_layers_group in [mandatory_layers_groups[0],mandatory_layers_groups[1]]:
+                            # Find the path computed on this layer group only
+                            try:
+                                idx = users_paths[users_ids[i]]['layers_groups'].index((mandatory_layers_group, None))
+                                control_path = users_paths[users_ids[i]]['paths'][idx]
+                                if mandatory_layers_group.isdisjoint(set(control_path.get_links_layers(gnodes))):
+                                    log.warning(f'Intermodal path {p} doest not check quality criteria, ignored')
                                     intermodal_path_valid = False
-                            # Check 2)
-                            if len(set(p.nodes)) != len(p.nodes):
-                                log.warning(f'Intermodal path {p} doest not check quality criteria, ignored')
+                            except ValueError:
+                                # No path computed for this layer group means no check possible
+                                # Since it probably means that the path computed on this layer
+                                # group was not valid, the intermodal path using this group layer
+                                # is ignored
+                                log.warning(f'No path computed for layers group {mandatory_layers_group} '\
+                                    f"for user {user.id} ({users_paths[users_ids[i]]['layers_groups']}), cannot check validity of intermodal path so ignore it")
                                 intermodal_path_valid = False
-                            if intermodal_path_valid and set([lid for lid,slice in p.layers]).issubset(available_layers[i]):
-                                user_chosen_services = chosen_services[i]
-                                user_mobility_services = [user_chosen_services[layer_id] for layer_id, slice_nodes in p.layers]
-                                p.mobility_services = user_mobility_services
-                                service_costs = sum_cost_dict(*(self._mlgraph.layers[layer].mobility_services[service].service_level_costs(p.nodes[node_inds]) for (layer, node_inds), service in zip(p.layers, p.mobility_services)))
-                                p.service_costs = service_costs
-                                # Add eventual additional costs
-                                if self._cost in list(self._mlgraph._additional_cost_functions.keys()):
-                                    p.update_cost(self._mlgraph._additional_cost_functions[self._cost](p))
-                                users_paths[users_ids[i]]['paths'].append(p)
-                                users_paths[users_ids[i]]['layers_groups'].append((layer_group,mandatory_layers_groups))
-                            else:
-                                log.warning(f"Incorrect path {p} ignored for user {user.id} on layers group {available_layers[i]} with mandatory transit layers {mandatory_layers_groups}")
+                        # Check 2)
+                        if len(set(p.nodes)) != len(p.nodes):
+                            log.warning(f'Intermodal path {p} doest not check quality criteria, ignored')
+                            intermodal_path_valid = False
+                        if intermodal_path_valid and set([lid for lid,slice in p.layers]).issubset(available_layers[i]):
+                            user_chosen_services = chosen_services[i]
+                            user_mobility_services = [user_chosen_services[layer_id] for layer_id, slice_nodes in p.layers]
+                            p.mobility_services = user_mobility_services
+                            service_costs = sum_cost_dict(*(self._mlgraph.layers[layer].mobility_services[service].service_level_costs(p.nodes[node_inds]) for (layer, node_inds), service in zip(p.layers, p.mobility_services)))
+                            p.service_costs = service_costs
+                            # Add eventual additional costs
+                            if self._cost in list(self._mlgraph._additional_cost_functions.keys()):
+                                p.update_cost(self._mlgraph._additional_cost_functions[self._cost](p))
+                            users_paths[users_ids[i]]['paths'].append(p)
+                            users_paths[users_ids[i]]['layers_groups'].append((layer_group,mandatory_layers_groups))
                         else:
-                            log.warning(f"Path not found for {user.id} on layers group {available_layers[i]} with mandatory transit layers {mandatory_layers_groups}")
+                            log.warning(f"Incorrect path {p} ignored for user {user.id} on layers group {available_layers[i]} with mandatory transit layers {mandatory_layers_groups}")
+                    else:
+                        log.warning(f"Path not found for {user.id} on layers group {available_layers[i]} with mandatory transit layers {mandatory_layers_groups}")
 
 
             # Proceed to path selection for each user
@@ -491,7 +462,7 @@ class AbstractDecisionModel(ABC):
                     raise PathNotFound(user.origin, user.destination)
                 log.info(f"Computed path for {uid} is {path}")
                 # Save initial path chosen cost
-                user.set_predicted_travel_cost(path.path_cost)
+                # user.set_predicted_travel_cost(path.path_cost)
                 # Save path in observer
                 if self._verbose_file:
                     for p in possible_paths:

@@ -115,6 +115,12 @@ class User(TimeDependentSubject):
         self._current_node = path.nodes[0]
         self._current_link = (path.nodes[0], path.nodes[1])
 
+    def set_possible_paths(self, possible_paths):
+        pps = {}
+        for pp in possible_paths:
+            pps['-'.join(pp.mobility_services)] = pp.path_cost
+        self.possible_paths = pps
+
     def set_position(self, current_link:Tuple[str, str], remaining_length:float, position:np.ndarray):
         self._current_link = current_link
         self._remaining_link_length = remaining_length
