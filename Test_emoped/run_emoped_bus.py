@@ -3,7 +3,8 @@ from mnms.demand import BaseDemandManager, User
 from mnms.generation.roads import generate_line_road
 from mnms.generation.layers import generate_layer_from_roads, generate_grid_origin_destination_layer, \
     generate_matching_origin_destination_layer
-from mnms.graph.layers import MultiLayerGraph, PublicTransportLayer, CarLayer, SharedVehicleLayer
+from mnms.graph.layers import PublicTransportLayer, CarLayer, SharedVehicleLayer
+from mnms.graph.multilayer_graph import MultiLayerGraph
 from mnms.log import set_mnms_logger_level, attach_log_file
 from mnms.mobility_service.public_transport import PublicTransportMobilityService
 from mnms.travel_decision import LogitDecisionModel
@@ -32,18 +33,18 @@ roads.register_stop('S1', '3_4', 0.9)
 roads.register_stop('S2', '4_5', 0.9)
 
 # Vehicle sharing mobility service
-emoped1 = OnVehicleSharingMobilityService("emoped1", dt_matching=0)
-emoped2 = OnVehicleSharingMobilityService("emoped2", dt_matching=0)
+emoped1 = OnVehicleSharingMobilityService("emoped1", free_floating_possible=False, dt_matching=0)
+emoped2 = OnVehicleSharingMobilityService("emoped2", free_floating_possible=False, dt_matching=0)
 
 emoped_layer = SharedVehicleLayer(roads, 'emoped_layer', Bike, 7, services=[emoped1, emoped2],
                                   observer=CSVVehicleObserver("emoped.csv"))
 
 # Add stations
-emoped1.create_station('ES1_1', '0', 20, 5)
+emoped1.create_station('ES1_1', '2', 20, 5)
 emoped1.create_station('ES1_2', '4', 20, 5)
 
 emoped2.create_station('ES2_1', '1', 20, 5)
-emoped2.create_station('ES2_2', '5', 20, 5)
+emoped2.create_station('ES2_2', '3', 20, 5)
 
 bus_service = PublicTransportMobilityService('Bus')
 pblayer = PublicTransportLayer(roads, 'BUS', Bus, 5, services=[bus_service],
@@ -68,9 +69,9 @@ mlgraph.connect_origindestination_layers(200)
 # Demand
 
 print('init demand')
-demand = BaseDemandManager([User("U0", [0, 0], [0, 5000], Time("07:00:30"), ['emoped1', 'Bus'])])  # ,
-# User("U1", [0, 0], [0, 5000], Time("07:00:30"), ['Bus']),
-# User("U2", [0, 0], [0, 5000], Time("07:00:30"), ['emoped1', 'Bus'])])
+demand = BaseDemandManager([User("U0", [0, 0], [0, 5000], Time("07:00:30"), ['emoped1', 'Bus']),
+ User("U1", [0, 0], [0, 5000], Time("07:00:30"), ['Bus']),
+ User("U2", [0, 0], [0, 5000], Time("07:00:30"), ['emoped2', 'Bus'])])
 demand.add_user_observer(CSVUserObserver('user.csv'))
 
 # Decison Model
@@ -102,7 +103,7 @@ def gc_emoped(mlgraph, link, costs):
 
 
 def gc_bus(mlgraph, link, costs):
-    gc = 20 / 3600 * link.length / costs['Bus']['speed']
+    gc = 4 + 20 / 3600 * link.length / costs['Bus']['speed']
     return gc
 
 
