@@ -29,29 +29,33 @@ attach_log_file('simulation.log')
 
 roads = generate_line_road([0, 0], [0, 5000], 6)
 roads.register_stop('S0', '0_1', 0.1)
-roads.register_stop('S1', '3_4', 0.9)
-roads.register_stop('S2', '4_5', 0.9)
+roads.register_stop('S1', '1_2', 0.1)
+roads.register_stop('S2', '2_3', 0.1)
+roads.register_stop('S3', '4_5', 0.9)
 
 # Vehicle sharing mobility service
-emoped1 = OnVehicleSharingMobilityService("emoped1", free_floating_possible=False, dt_matching=0)
-emoped2 = OnVehicleSharingMobilityService("emoped2", free_floating_possible=False, dt_matching=0)
+emoped1 = OnVehicleSharingMobilityService("emoped1", free_floating_possible=True, dt_matching=0)
+emoped2 = OnVehicleSharingMobilityService("emoped2", free_floating_possible=True, dt_matching=0)
 
 emoped_layer = SharedVehicleLayer(roads, 'emoped_layer', Bike, 7, services=[emoped1, emoped2],
                                   observer=CSVVehicleObserver("emoped.csv"))
 
 # Add stations
-emoped1.create_station('ES1_1', '2', 20, 5)
-emoped1.create_station('ES1_2', '4', 20, 5)
+# emoped1.create_station('ES1_1', '0', 20, 5)
+# emoped1.create_station('ES1_2', '4', 20, 5)
+# emoped2.create_station('ES2_1', '1', 20, 5)
+# emoped2.create_station('ES2_2', '3', 20, 5)
 
-emoped2.create_station('ES2_1', '1', 20, 5)
-emoped2.create_station('ES2_2', '3', 20, 5)
+# Add free-floating vehicle
+emoped1.init_free_floating_vehicles('1',3)
+emoped2.init_free_floating_vehicles('2',2)
 
 bus_service = PublicTransportMobilityService('Bus')
 pblayer = PublicTransportLayer(roads, 'BUS', Bus, 5, services=[bus_service],
                                observer=CSVVehicleObserver("veh_bus.csv"))
 pblayer.create_line("L0",
-                    ["S0", "S1", "S2"],
-                    [["0_1", "1_2", "2_3", "3_4"], ["3_4", "4_5"]],
+                    ["S0", "S1", "S2", "S3"],
+                    [["0_1", "1_2"], ["1_2", "2_3"], ["2_3", "3_4", "4_5"]],
                     timetable=TimeTable.create_table_freq('07:00:00', '08:00:00', Dt(minutes=10)))
 
 odlayer = generate_matching_origin_destination_layer(roads)
@@ -69,14 +73,20 @@ mlgraph.connect_origindestination_layers(200)
 # Demand
 
 print('init demand')
-demand = BaseDemandManager([User("U0", [0, 0], [0, 5000], Time("07:00:30"), ['emoped1', 'Bus']),
- User("U1", [0, 0], [0, 5000], Time("07:00:30"), ['Bus']),
+demand = BaseDemandManager([User("U0", [0, 0], [0, 5000], Time("07:00:30"), ['emoped1', 'emoped2', 'Bus']),
+ User("U1", [0, 0], [0, 5000], Time("07:00:30"), ['emoped1', 'Bus']),
  User("U2", [0, 0], [0, 5000], Time("07:00:30"), ['emoped2', 'Bus'])])
 demand.add_user_observer(CSVUserObserver('user.csv'))
 
 # Decison Model
 
-decision_model = DummyDecisionModel(mlgraph, outfile="path.csv", cost='gen_cost')
+layers_groups = [({"emoped_layer", 'BUS'}, ({"emoped_layer"}, {'BUS'})),
+                 ({"emoped_layer"}, None),
+                 ({'BUS'}, None)]
+
+decision_model = DummyDecisionModel(mlgraph,
+                                    outfile="path.csv", cost='gen_cost',
+                                    layers_groups = layers_groups)
 
 
 # Flow Motor
@@ -98,12 +108,12 @@ supervisor = Supervisor(mlgraph,
 
 # Define link based costs
 def gc_emoped(mlgraph, link, costs):
-    gc = (0.33 / 60 + 20 / 3600) * link.length / costs['emoped1']['speed']
+    gc = (0*0.33 / 60 + 20 / 3600) * link.length / costs['emoped1']['speed']
     return gc
 
 
 def gc_bus(mlgraph, link, costs):
-    gc = 4 + 20 / 3600 * link.length / costs['Bus']['speed']
+    gc = 0*4 + 20 / 3600 * link.length / costs['Bus']['speed']
     return gc
 
 
@@ -133,26 +143,26 @@ supervisor.run(Time("07:00:00"),
                10)
 
 ###  Plot
+if False:
+    from matplotlib import pyplot as plt
 
-from matplotlib import pyplot as plt
+    plt.figure()
+    for id in roads.nodes:
+        node = roads.nodes[id]
+        plt.plot(node.position[0], node.position[1], '+b')
 
-plt.figure()
-for id in roads.nodes:
-    node = roads.nodes[id]
-    plt.plot(node.position[0], node.position[1], '+b')
+    for id in roads.stops:
+        stop = roads.stops[id]
+        plt.plot(stop.absolute_position[0], stop.absolute_position[1], 'ro')
 
-for id in roads.stops:
-    stop = roads.stops[id]
-    plt.plot(stop.absolute_position[0], stop.absolute_position[1], 'ro')
+    for id in emoped1.stations:
+        station = emoped1.stations[id]
+        node = roads.nodes[station.node]
+        plt.plot(node.position[0], node.position[1], 'xg')
 
-for id in emoped1.stations:
-    station = emoped1.stations[id]
-    node = roads.nodes[station.node]
-    plt.plot(node.position[0], node.position[1], 'xg')
+    for id in emoped2.stations:
+        station = emoped2.stations[id]
+        node = roads.nodes[station.node]
+        plt.plot(node.position[0], node.position[1], 'xm')
 
-for id in emoped2.stations:
-    station = emoped2.stations[id]
-    node = roads.nodes[station.node]
-    plt.plot(node.position[0], node.position[1], 'xm')
-
-plt.show()
+    plt.show()

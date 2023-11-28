@@ -6,7 +6,7 @@ from mnms.travel_decision.abstract import AbstractDecisionModel
 
 
 class DummyDecisionModel(AbstractDecisionModel):
-    def __init__(self, mmgraph: MultiLayerGraph, outfile:str=None, cost='travel_time', verbose_file=False):
+    def __init__(self, mmgraph: MultiLayerGraph, outfile:str=None, cost='travel_time', verbose_file=False, layers_groups: list=None):
         """
         Simple decision model that choose the first path of the ls
 
@@ -17,7 +17,7 @@ class DummyDecisionModel(AbstractDecisionModel):
             verbose_file:
         """
         super(DummyDecisionModel, self).__init__(mmgraph, n_shortest_path=1, outfile=outfile, verbose_file=verbose_file,
-                                                 cost=cost)
+                                                 cost=cost, layers_groups=layers_groups)
 
     def path_choice(self, paths:List[Path]) -> Path:
         # Sort paths by ascending cost before returning the best path
