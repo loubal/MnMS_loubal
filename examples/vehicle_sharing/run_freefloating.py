@@ -3,8 +3,7 @@ from mnms.generation.roads import generate_manhattan_road
 from mnms.mobility_service.vehicle_sharing import OnVehicleSharingMobilityService
 from mnms.tools.observer import CSVVehicleObserver, CSVUserObserver
 from mnms.generation.layers import generate_layer_from_roads, generate_grid_origin_destination_layer
-from mnms.graph.layers import SharedVehicleLayer
-from mnms.graph.multilayer_graph import MultiLayerGraph
+from mnms.graph.layers import SharedVehicleLayer, MultiLayerGraph
 from mnms.vehicles.veh_type import Bike
 from mnms.generation.demand import generate_random_demand
 from mnms.travel_decision.dummy import DummyDecisionModel
@@ -42,6 +41,8 @@ ff_velov.init_free_floating_vehicles('I_2',1)
 # Connect od layer and velov layer
 mlgraph.connect_origindestination_layers(500)
 
+save_graph(mlgraph, 'free_floating_example.json')
+
 # Desicion model
 decision_model = DummyDecisionModel(mlgraph, outfile="path.csv")
 
@@ -65,6 +66,6 @@ supervisor = Supervisor(mlgraph,
 supervisor.run(Time("07:00:00"),
                 Time("09:00:00"),
                 Dt(minutes=1),
-                10)
+                1)
 
 
