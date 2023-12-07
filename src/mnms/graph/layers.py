@@ -666,7 +666,8 @@ class SharedVehicleLayer(AbstractLayer):
                  veh_type: Type[Vehicle],
                  default_speed,
                  services: Optional[List[AbstractMobilityService]] = None,  # TODO
-                 observer: Optional = None):
+                 observer: Optional = None,
+                 prefix = ''):
         super(SharedVehicleLayer, self).__init__(roads, _id, veh_type, default_speed, services, observer)
 
         self.stations = []
