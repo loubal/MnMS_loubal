@@ -665,24 +665,26 @@ class SharedVehicleLayer(AbstractLayer):
                  veh_type: Type[Vehicle],
                  default_speed,
                  services: Optional[List[AbstractMobilityService]] = None,  # TODO
-                 observer: Optional = None):
+                 observer: Optional = None,
+                 prefix = ''):
         super(SharedVehicleLayer, self).__init__(roads, _id, veh_type, default_speed, services, observer)
 
         self.stations = []
 
         for n in roads.nodes:
-            nid=roads.nodes[n].id
+            nid=prefix+roads.nodes[n].id
             self.graph.add_node(nid, roads.nodes[n].position[0], roads.nodes[n].position[1], self.id)
             self.map_reference_nodes[n]=roads.nodes[n].id
 
         for l in roads.sections:
-            lid=roads.sections[l].id
+            lid=prefix+roads.sections[l].id
             length = roads.sections[l].length
             upstream = roads.sections[l].upstream
             downstream = roads.sections[l].downstream
-            self.graph.add_link(lid, upstream, downstream, length, {self.id:{'length':15}}, self.id)
-            self.map_reference_links[l]=[]
-            self.map_reference_links[l].append(roads.sections[l].id)
+            self.graph.add_link(lid, prefix+upstream, prefix+downstream, length, {self.id:{'length':15}}, self.id)
+            self.map_reference_links[lid]=[]
+            #self.map_reference_links[l].append(roads.sections[l].id)
+            self.map_reference_links[lid].append(roads.sections[l].id)
 
     def connect_origindestination(self, odlayer: OriginDestinationLayer, connection_distance: float):
         """

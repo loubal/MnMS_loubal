@@ -59,7 +59,9 @@ class OnVehicleSharingMobilityService(AbstractMobilityService):
 
         self.stations[id_station] = station
 
-        self.layer.stations.append({'id': id_station, 'node_id': node, 'position': self.layer.roads.nodes[node].position})
+        #self.layer.stations.append({'id': id_station, 'node_id': node, 'position': self.layer.roads.nodes[node].position})
+        self.layer.stations.append(
+            {'id': id_station, 'node_id': node, 'position': self.layer.graph.nodes[node].position})
 
         # TO DO: 2 stations may be on the same node (free-floating stations)
         self.map_node_station[node] = id_station

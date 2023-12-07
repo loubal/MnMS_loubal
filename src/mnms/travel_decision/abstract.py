@@ -229,7 +229,7 @@ class AbstractDecisionModel(ABC):
         return new_users
 
     # TODO: restrict combination of paths (ex: we dont want Uber->Bus)
-    """def __call__(self, new_users: List[User], tcurrent: Time):
+    def __call__(self, new_users: List[User], tcurrent: Time):
         legacy_users = self._check_refused_users(tcurrent)
         log.info(f'There are {len(new_users)} new users and {len(legacy_users)} legacy users')
         all_users = legacy_users+new_users
@@ -335,13 +335,13 @@ class AbstractDecisionModel(ABC):
                                                "INF",
                                                ''])
 
-        return all_users"""
+        return all_users
 
-    def __call__(self, new_users: List[User], tcurrent: Time):
+    """def __call__(self, new_users: List[User], tcurrent: Time):
         #assert len(self._layers_groups) > 0, 'Travel decision launched in per_layers_groups type '\
         #    'without any layers groups defined...'
         all_users = self.call_per_layers_groups(new_users, tcurrent)
-        return all_users
+        return all_users"""
 
     def call_per_layers_groups(self, new_users: List[User], tcurrent: Time):
         legacy_users = self._check_refused_users(tcurrent)
