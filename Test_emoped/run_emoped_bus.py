@@ -3,8 +3,7 @@ from mnms.demand import BaseDemandManager, User
 from mnms.generation.roads import generate_line_road
 from mnms.generation.layers import generate_layer_from_roads, generate_grid_origin_destination_layer, \
     generate_matching_origin_destination_layer
-from mnms.graph.layers import PublicTransportLayer, CarLayer, SharedVehicleLayer
-from mnms.graph.multilayer_graph import MultiLayerGraph
+from mnms.graph.layers import PublicTransportLayer, CarLayer, SharedVehicleLayer, MultiLayerGraph
 from mnms.log import set_mnms_logger_level, attach_log_file
 from mnms.mobility_service.public_transport import PublicTransportMobilityService
 from mnms.travel_decision import LogitDecisionModel
@@ -37,8 +36,11 @@ roads.register_stop('S3', '4_5', 0.9)
 emoped1 = OnVehicleSharingMobilityService("emoped1", free_floating_possible=True, dt_matching=0)
 emoped2 = OnVehicleSharingMobilityService("emoped2", free_floating_possible=True, dt_matching=0)
 
-emoped_layer = SharedVehicleLayer(roads, 'emoped_layer', Bike, 7, services=[emoped1, emoped2],
-                                  observer=CSVVehicleObserver("emoped.csv"))
+# one layer per emoped service
+emoped_layer1 = SharedVehicleLayer(roads, 'emoped_layer1', Bike, 7, services=[emoped1],
+                                  observer=CSVVehicleObserver("emoped1.csv"), prefix='em1_')
+emoped_layer2 = SharedVehicleLayer(roads, 'emoped_layer2', Bike, 7, services=[emoped2],
+                                  observer=CSVVehicleObserver("emoped2.csv"), prefix='em2_')
 
 # Add stations
 # emoped1.create_station('ES1_1', '0', 20, 5)
@@ -47,8 +49,8 @@ emoped_layer = SharedVehicleLayer(roads, 'emoped_layer', Bike, 7, services=[emop
 # emoped2.create_station('ES2_2', '3', 20, 5)
 
 # Add free-floating vehicle
-emoped1.init_free_floating_vehicles('1',3)
-emoped2.init_free_floating_vehicles('2',2)
+emoped1.init_free_floating_vehicles('em1_1',1)
+emoped2.init_free_floating_vehicles('em2_0',1)
 
 bus_service = PublicTransportMobilityService('Bus')
 pblayer = PublicTransportLayer(roads, 'BUS', Bus, 5, services=[bus_service],
@@ -60,34 +62,36 @@ pblayer.create_line("L0",
 
 odlayer = generate_matching_origin_destination_layer(roads)
 #
-mlgraph = MultiLayerGraph([emoped_layer, pblayer],
+mlgraph = MultiLayerGraph([emoped_layer1, emoped_layer2, pblayer],
                           odlayer,
                           200)
 print('connect layers')
-mlgraph.connect_inter_layers(["emoped_layer", "BUS"], 200)
+mlgraph.connect_inter_layers(["emoped_layer1", "BUS"], 200)
+mlgraph.connect_inter_layers(["emoped_layer2", "BUS"], 200)
 # mlgraph.connect_layers("TRANSIT_LINK", "emoped_layer", "pblayer", 100, {})
 
 # Connect od layer and layers
-mlgraph.connect_origindestination_layers(200)
+# mlgraph.connect_origindestination_layers(200) # already connected with mlgraph init
 
 # Demand
 
 print('init demand')
-demand = BaseDemandManager([User("U0", [0, 0], [0, 5000], Time("07:00:30"), ['emoped1', 'emoped2', 'Bus']),
+demand = BaseDemandManager([User("U0", [0, 0], [0, 5000], Time("07:00:30"), ['emoped1', 'emoped2']),
  User("U1", [0, 0], [0, 5000], Time("07:00:30"), ['emoped1', 'Bus']),
  User("U2", [0, 0], [0, 5000], Time("07:00:30"), ['emoped2', 'Bus'])])
 demand.add_user_observer(CSVUserObserver('user.csv'))
 
 # Decison Model
 
-layers_groups = [({"emoped_layer", 'BUS'}, ({"emoped_layer"}, {'BUS'})),
-                 ({"emoped_layer"}, None),
+layers_groups = [({"emoped_layer1", "emoped_layer2", 'BUS'}, ({"emoped_layer1", "emoped_layer2"}, {'BUS'})),
+                 ({"emoped_layer1", "emoped_layer2"}, None),
                  ({'BUS'}, None)]
 
+#decision_model = DummyDecisionModel(mlgraph,
+#                                    outfile="path.csv", cost='gen_cost',
+#                                    layers_groups = layers_groups)
 decision_model = DummyDecisionModel(mlgraph,
-                                    outfile="path.csv", cost='gen_cost',
-                                    layers_groups = layers_groups)
-
+                                    outfile="path.csv", cost='gen_cost')
 
 # Flow Motor
 
@@ -107,18 +111,23 @@ supervisor = Supervisor(mlgraph,
 
 
 # Define link based costs
-def gc_emoped(mlgraph, link, costs):
+def gc_emoped1(mlgraph, link, costs):
     gc = (0*0.33 / 60 + 20 / 3600) * link.length / costs['emoped1']['speed']
     return gc
 
+def gc_emoped2(mlgraph, link, costs):
+    gc = (0*0.33 / 60 + 20 / 3600) * link.length / costs['emoped2']['speed']
+    return gc
 
 def gc_bus(mlgraph, link, costs):
     gc = 0*4 + 20 / 3600 * link.length / costs['Bus']['speed']
     return gc
 
 
-supervisor._mlgraph.add_cost_function(layer_id='emoped_layer', cost_name='gen_cost',
-                                      cost_function=gc_emoped)
+supervisor._mlgraph.add_cost_function(layer_id='emoped_layer1', cost_name='gen_cost',
+                                      cost_function=gc_emoped1)
+supervisor._mlgraph.add_cost_function(layer_id='emoped_layer2', cost_name='gen_cost',
+                                      cost_function=gc_emoped2)
 supervisor._mlgraph.add_cost_function(layer_id='BUS', cost_name='gen_cost',
                                       cost_function=gc_bus)
 

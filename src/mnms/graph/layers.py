@@ -686,11 +686,13 @@ class SharedVehicleLayer(AbstractLayer):
                  veh_type: Type[Vehicle],
                  default_speed,
                  services: Optional[List[AbstractMobilityService]] = None,  # TODO
-                 observer: Optional = None):
+                 observer: Optional = None,
+                 prefix = ''):
         super(SharedVehicleLayer, self).__init__(roads, _id, veh_type, default_speed, services, observer)
 
         self.stations = []
 
+<<<<<<< HEAD
     def create_node(self, nid: str, dbnode: str, exclude_movements: Optional[Dict[str, Set[str]]] = None):
         assert dbnode in self.roads.nodes
         node_pos = self.roads.nodes[dbnode].position
@@ -710,6 +712,22 @@ class SharedVehicleLayer(AbstractLayer):
         self.graph.add_link(lid, upstream, downstream, length, costs, self.id)
 
         self.map_reference_links[lid] = road_links
+=======
+        for n in roads.nodes:
+            nid=prefix+roads.nodes[n].id
+            self.graph.add_node(nid, roads.nodes[n].position[0], roads.nodes[n].position[1], self.id)
+            self.map_reference_nodes[n]=roads.nodes[n].id
+
+        for l in roads.sections:
+            lid=prefix+roads.sections[l].id
+            length = roads.sections[l].length
+            upstream = roads.sections[l].upstream
+            downstream = roads.sections[l].downstream
+            self.graph.add_link(lid, prefix+upstream, prefix+downstream, length, {self.id:{'length':15}}, self.id)
+            self.map_reference_links[lid]=[]
+            #self.map_reference_links[l].append(roads.sections[l].id)
+            self.map_reference_links[lid].append(roads.sections[l].id)
+>>>>>>> correct two services same road
 
     def connect_origindestination(self, odlayer: OriginDestinationLayer, connection_distance: float):
         """
