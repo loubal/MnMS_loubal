@@ -28,6 +28,53 @@ class Event(Enum):
     MATCH_FAILURE = 1
     INTERRUPTION = 2
 
+def _process_shortest_path_inputs_layer_group(mlgraph: MultiLayerGraph, users: list, layer_group: set):
+    odlayer = mlgraph.odlayer
+    user_ids = []
+    origins = []
+    destinations = []
+    available_layers = []
+    chosen_mservices = []
+
+    origins_id = list(odlayer.origins.keys())
+    origins_pos = np.array([position for position in odlayer.origins.values()])
+    destinations_id = list(odlayer.destinations.keys())
+    destinations_pos = np.array([position for position in odlayer.destinations.values()])
+
+    for u in users:
+        # Check that the intersection between this user's available layers and layer_group
+        # is not empty
+        u_available_layers = set(list(mlgraph.layers.keys())) if u.available_mobility_service is None \
+            else {layer.id for mservice in u.available_mobility_service for layer in mlgraph.layers.values() if mservice in layer.mobility_services}
+        considered_available_layers = u_available_layers.intersection(layer_group)
+
+        if len(considered_available_layers) > 0:
+            user_ids.append(u.id)
+            # Get origin and destination of this user
+            if isinstance(u.origin, np.ndarray):
+                origins.append(origins_id[np.argmin(_norm(origins_pos - u.origin, axis=1))])
+                destinations.append(destinations_id[np.argmin(_norm(destinations_pos - u.destination, axis=1))])
+            else:
+                origins.append(u.origin)
+                destinations.append(u.destination)
+            # Get chosen mobility services of this user
+            mservices = {'TRANSIT': 'WALK'}
+            if u.available_mobility_service is None:
+                # Take the first registered mobility service of each layer
+                for layer in considered_available_layers:
+                    mservices[layer] = list(mlgraph.layers[layer].mobility_services.keys())[0]
+            else:
+                # Take the first defined mobility service of each layer
+                for layer in considered_available_layers:
+                    mservices[layer] = [ms for ms in u.available_mobility_service \
+                        if ms in list(mlgraph.layers[layer].mobility_services.keys())][0]
+            chosen_mservices.append(mservices)
+            # Add TRANSIT layer in the set
+            considered_available_layers.add('TRANSIT')
+            available_layers.append(considered_available_layers)
+    return user_ids, origins, destinations, available_layers, chosen_mservices
+
+
 class AbstractDecisionModel(ABC):
 
     def __init__(self,
