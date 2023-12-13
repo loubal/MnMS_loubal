@@ -691,8 +691,13 @@ class SharedVehicleLayer(AbstractLayer):
         super(SharedVehicleLayer, self).__init__(roads, _id, veh_type, default_speed, services, observer)
 
         self.stations = []
+        self.connected_layers = []
 
-<<<<<<< HEAD
+    def add_connected_layers(self, layer_id_list: List[str]):
+        for layer_id in layer_id_list:
+            self.connected_layers.append(layer_id)
+        return
+
     def create_node(self, nid: str, dbnode: str, exclude_movements: Optional[Dict[str, Set[str]]] = None):
         assert dbnode in self.roads.nodes
         node_pos = self.roads.nodes[dbnode].position
@@ -712,22 +717,6 @@ class SharedVehicleLayer(AbstractLayer):
         self.graph.add_link(lid, upstream, downstream, length, costs, self.id)
 
         self.map_reference_links[lid] = road_links
-=======
-        for n in roads.nodes:
-            nid=prefix+roads.nodes[n].id
-            self.graph.add_node(nid, roads.nodes[n].position[0], roads.nodes[n].position[1], self.id)
-            self.map_reference_nodes[n]=roads.nodes[n].id
-
-        for l in roads.sections:
-            lid=prefix+roads.sections[l].id
-            length = roads.sections[l].length
-            upstream = roads.sections[l].upstream
-            downstream = roads.sections[l].downstream
-            self.graph.add_link(lid, prefix+upstream, prefix+downstream, length, {self.id:{'length':15}}, self.id)
-            self.map_reference_links[lid]=[]
-            #self.map_reference_links[l].append(roads.sections[l].id)
-            self.map_reference_links[lid].append(roads.sections[l].id)
->>>>>>> correct two services same road
 
     def connect_origindestination(self, odlayer: OriginDestinationLayer, connection_distance: float):
         """
@@ -804,7 +793,7 @@ class SharedVehicleLayer(AbstractLayer):
 
     def connect_station(self, station_id:str,odlayer: OriginDestinationLayer, connection_distance: float):
         """
-        Connect a free floating station to the origins of the odlayer
+        Connect a free floating station to the origins of the odlayer and to specified layers
 
         Parameters
         ----------
@@ -838,6 +827,16 @@ class SharedVehicleLayer(AbstractLayer):
                     transit_links.append(
                         {'id': lid, 'upstream_node': nid, 'downstream_node': node_id, 'dist': dist_node})
 
+        for layer_id  in self.connected_layers:
+            layer = self._multi_graph.layers[layer_id]
+            for nid in layer.graph.nodes:
+                npos = np.asarray(layer.graph.nodes[nid].position)
+                dist = _norm(pos - npos)
+                if dist < connection_distance:
+                    lid = f"{nid}_{node_id}"
+                    transit_links.append(
+                        {'id': lid, 'upstream_node': nid, 'downstream_node': node_id, 'dist': dist})
+
         self._multi_graph.add_transit_links(transit_links)
 
         return
@@ -862,17 +861,13 @@ class SharedVehicleLayer(AbstractLayer):
                 #     disconnection would impact the station-based service
                 to_delete = []
                 for layer_id in self.multi_graph.transitlayer.links.keys():
-                    for link_id in self.multi_graph.transitlayer.links[layer_id][self._id]:
-                        link_obj = self.multi_graph.graph.links[link_id]
-                        if link_obj.downstream == s['node']:
-                            link = self.multi_graph.graph.links[link_id]
-                            to_delete.append((layer_id,link_id, link.upstream, link.downstream))
-                # Delete the links
-                for layer_id,link_id,_,_ in to_delete:
-                    self.multi_graph.graph.delete_link(link_id)
-                    self.multi_graph.transitlayer.links[layer_id][self._id].remove(link_id)
-                    del self.multi_graph.map_linkid_layerid[link_id]
-                # Remove the station
+                    links_to_remove = [link_id for link_id in self.multi_graph.transitlayer.links[layer_id][self._id]
+                                       if link_id[-len(s['node']):] == s['node']]
+                    for link_id in links_to_remove:
+                        self.multi_graph.graph.delete_link(link_id)
+                        self.multi_graph.transitlayer.links[layer_id][self._id].remove(link_id)
+                        del self.multi_graph.map_linkid_layerid[link_id]
+
                 self.stations.remove(s)
                 # Return the list of links that have been deleted
                 return [(onid,dnid) for _,_,onid,dnid in to_delete]
