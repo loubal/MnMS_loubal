@@ -59,6 +59,8 @@ if __name__ == '__main__':
 
     t0 = time.time()
 
+    USE_BUS = False
+
     DIST_CONNECTION = 200
 
     mmgraph_pt = load_graph(indir + "/network_pt.json")
@@ -85,9 +87,10 @@ if __name__ == '__main__':
     #emoped2.init_free_floating_vehicles('em2_0', 1) #TODO: connect ff emopeds
 
     # PT
-    bus_service = PublicTransportMobilityService("BUS")
-    bus_service.attach_vehicle_observer(CSVVehicleObserver(outdir + "/bus.csv"))
-    mmgraph_pt.layers["BUSLayer"].add_mobility_service(bus_service)
+    if USE_BUS:
+        bus_service = PublicTransportMobilityService("BUS")
+        bus_service.attach_vehicle_observer(CSVVehicleObserver(outdir + "/bus.csv"))
+        mmgraph_pt.layers["BUSLayer"].add_mobility_service(bus_service)
 
     tram_service = PublicTransportMobilityService("TRAM")
     tram_service.attach_vehicle_observer(CSVVehicleObserver(outdir + "/tram.csv"))
@@ -100,11 +103,19 @@ if __name__ == '__main__':
 
     # Create graph
 
-    mmgraph = MultiLayerGraph([mmgraph_pt.layers["BUSLayer"], mmgraph_pt.layers["TRAMLayer"], mmgraph_pt.layers["METROLayer"],
-                               emoped_layer1, emoped_layer2], odlayer, DIST_CONNECTION)
+    if USE_BUS:
+        mmgraph = MultiLayerGraph([mmgraph_pt.layers["BUSLayer"], mmgraph_pt.layers["TRAMLayer"], mmgraph_pt.layers["METROLayer"],
+                                   emoped_layer1, emoped_layer2], odlayer, DIST_CONNECTION)
 
-    mmgraph.connect_inter_layers(["BUSLayer", "TRAMLayer", "METROLayer"], DIST_CONNECTION)
-    mmgraph.connect_intra_layer("BUSLayer", DIST_CONNECTION)
+        mmgraph.connect_inter_layers(["BUSLayer", "TRAMLayer", "METROLayer"], DIST_CONNECTION)
+    else:
+        mmgraph = MultiLayerGraph(
+            [mmgraph_pt.layers["TRAMLayer"], mmgraph_pt.layers["METROLayer"],
+             emoped_layer1, emoped_layer2], odlayer, DIST_CONNECTION)
+
+        mmgraph.connect_inter_layers(["TRAMLayer", "METROLayer"], DIST_CONNECTION)
+    if USE_BUS:
+        mmgraph.connect_intra_layer("BUSLayer", DIST_CONNECTION)
     mmgraph.connect_intra_layer("TRAMLayer", DIST_CONNECTION)
     mmgraph.connect_intra_layer("METROLayer", DIST_CONNECTION)
 
@@ -122,8 +133,10 @@ if __name__ == '__main__':
 
     # Flow
     flow_motor = MFDFlowMotor(outfile=outdir + "/flow.csv")
-    flow_motor.add_reservoir(Reservoir(mmgraph.roads.zones["RES"], ["BUS", "TRAM", "METRO"], calculate_V_MFD))
-    #flow_motor.add_reservoir(Reservoir(mmgraph.roads.zones["RES"], ["CAR"], calculate_V_MFD))
+    if USE_BUS:
+        flow_motor.add_reservoir(Reservoir(mmgraph.roads.zones["RES"], ["BUS", "TRAM", "METRO"], calculate_V_MFD))
+    else:
+        flow_motor.add_reservoir(Reservoir(mmgraph.roads.zones["RES"], ["TRAM", "METRO"], calculate_V_MFD))
 
     travel_decision = DummyDecisionModel(mmgraph, outfile=outdir + "/path.csv")
 
@@ -160,8 +173,9 @@ if __name__ == '__main__':
                                           cost_function=gc_metro)
     supervisor._mlgraph.add_cost_function(layer_id='TRAMLayer', cost_name='gen_cost',
                                           cost_function=gc_tram)
-    supervisor._mlgraph.add_cost_function(layer_id='BUSLayer', cost_name='gen_cost',
-                                          cost_function=gc_bus)
+    if USE_BUS:
+        supervisor._mlgraph.add_cost_function(layer_id='BUSLayer', cost_name='gen_cost',
+                                              cost_function=gc_bus)
     t1 = time.time()
     print(t1-t0, 's loading time')
     print("Start simulation")
