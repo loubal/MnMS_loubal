@@ -28,14 +28,14 @@ import time
 
 # Run Amsterdam pilot for WP5, emoped competition with PT
 
-indir = "INPUTS"
-outdir = "OUTPUTS"
+indir = "INPUTS/"
+outdir = "OUTPUTS/"
 
 # set_all_mnms_logger_level(LOGLEVEL.WARNING)
 set_mnms_logger_level(LOGLEVEL.INFO, ["mnms.simulation"])
 
 # get_logger("mnms.graph.shortest_path").setLevel(LOGLEVEL.WARNING)
-attach_log_file(outdir + '/simulation.log')
+attach_log_file(outdir + 'simulation.log')
 
 # 'DESTINATION_R_82604106' 'ORIGIN_E_83202447'
 
@@ -61,89 +61,117 @@ if __name__ == '__main__':
 
     USE_BUS = False
 
-    DIST_CONNECTION = 200
+    # Transit connection (m)
+    DIST_MAX = 500
+    DIST_CONNECTION_OD = 200
+    DIST_CONNECTION_PT = 100
+    DIST_CONNECTION_MIX = 100
 
-    mmgraph_pt = load_graph(indir + "/network_pt.json")
+    mmgraph = load_graph(indir + "network_pt.json")
 
-    odlayer = load_odlayer(indir + "/od_layer_clustered_200.json")
+    odlayer = load_odlayer(indir + "od_layer_clustered_200.json")
 
-    #mmgraph.add_origin_destination_layer(odlayer)
-
-    #personal_car = PersonalMobilityService("PersonalVehicle")
-    #personal_car.attach_vehicle_observer(CSVVehicleObserver(outdir + "/veh.csv"))
-    #mmgraph.layers["CAR"].add_mobility_service(personal_car)
+    mmgraph.add_origin_destination_layer(odlayer)
 
     # Vehicle sharing mobility service
+    #mmgraph_roads = load_graph(indir + "new_network.json")  # to get the road network only
+    df_emoped1 = pd.read_csv(indir + 'init_pos_emoped.csv')
+    df_emoped2 = pd.read_csv(indir + 'init_pos_emoped.csv')
+
     emoped1 = VehicleSharingMobilityService("emoped1", free_floating_possible=True, dt_matching=0)
     emoped2 = VehicleSharingMobilityService("emoped2", free_floating_possible=True, dt_matching=0)
-    emoped1.attach_vehicle_observer(CSVVehicleObserver(outdir + "/emoped1.csv"))
-    emoped2.attach_vehicle_observer(CSVVehicleObserver(outdir + "/emoped2.csv"))
-
-    emoped_layer1 = generate_layer_from_roads(mmgraph_pt.roads, 'EMOPEDLayer1', SharedVehicleLayer, Bike, 7, [emoped1])
-    emoped_layer2 = generate_layer_from_roads(mmgraph_pt.roads, 'EMOPEDLayer2', SharedVehicleLayer, Bike, 7, [emoped2])
+    emoped_layer1 = generate_layer_from_roads(mmgraph.roads, 'EMOPEDLayer1', SharedVehicleLayer, Bike, 7,
+                                              [emoped1])
+    #emoped_layer2 = generate_layer_from_roads(mmgraph.roads, 'EMOPEDLayer2', SharedVehicleLayer, Bike, 7,
+    #                                          [emoped2])
+    emoped_layer1.add_connected_layers(["BUSLayer", "TRAMLayer", "METROLayer"])
+    #emoped_layer2.add_connected_layers(["BUSLayer", "TRAMLayer", "METROLayer"])
+    emoped1.attach_vehicle_observer(CSVVehicleObserver(outdir + "emoped1.csv"))
+    #emoped2.attach_vehicle_observer(CSVVehicleObserver(outdir + "emoped2.csv"))
 
     # Add stations
-    #emoped1.init_free_floating_vehicles('em1_1', 1)
-    #emoped2.init_free_floating_vehicles('em2_0', 1) #TODO: connect ff emopeds
+    for nid in df_emoped1['closest_node'][:]:
+        emoped1.init_free_floating_vehicles(nid, 1)
+    #for nid in df_emoped2['closest_node'][:]:
+    #    emoped2.init_free_floating_vehicles(nid, 1)
 
     # PT
     if USE_BUS:
         bus_service = PublicTransportMobilityService("BUS")
-        bus_service.attach_vehicle_observer(CSVVehicleObserver(outdir + "/bus.csv"))
-        mmgraph_pt.layers["BUSLayer"].add_mobility_service(bus_service)
+        bus_service.attach_vehicle_observer(CSVVehicleObserver(outdir + "bus.csv"))
+        mmgraph.layers["BUSLayer"].add_mobility_service(bus_service)
 
     tram_service = PublicTransportMobilityService("TRAM")
-    tram_service.attach_vehicle_observer(CSVVehicleObserver(outdir + "/tram.csv"))
-    mmgraph_pt.layers["TRAMLayer"].add_mobility_service(tram_service)
+    tram_service.attach_vehicle_observer(CSVVehicleObserver(outdir + "tram.csv"))
+    mmgraph.layers["TRAMLayer"].add_mobility_service(tram_service)
 
     metro_service = PublicTransportMobilityService("METRO")
-    metro_service.attach_vehicle_observer(CSVVehicleObserver(outdir + "/metro.csv"))
-    mmgraph_pt.layers["METROLayer"].add_mobility_service(metro_service)
+    metro_service.attach_vehicle_observer(CSVVehicleObserver(outdir + "metro.csv"))
+    mmgraph.layers["METROLayer"].add_mobility_service(metro_service)
 
 
     # Create graph
 
     if USE_BUS:
-        mmgraph = MultiLayerGraph([mmgraph_pt.layers["BUSLayer"], mmgraph_pt.layers["TRAMLayer"], mmgraph_pt.layers["METROLayer"],
-                                   emoped_layer1, emoped_layer2], odlayer, DIST_CONNECTION)
-
-        mmgraph.connect_inter_layers(["BUSLayer", "TRAMLayer", "METROLayer"], DIST_CONNECTION)
+        mmgraph = MultiLayerGraph([mmgraph.layers["BUSLayer"], mmgraph.layers["TRAMLayer"], mmgraph.layers["METROLayer"],
+                                   emoped_layer1, emoped_layer2], odlayer, DIST_CONNECTION_OD)
     else:
         mmgraph = MultiLayerGraph(
-            [mmgraph_pt.layers["TRAMLayer"], mmgraph_pt.layers["METROLayer"],
-             emoped_layer1, emoped_layer2], odlayer, DIST_CONNECTION)
+            [mmgraph.layers["TRAMLayer"], mmgraph.layers["METROLayer"],
+             emoped_layer1], odlayer, DIST_CONNECTION_OD)
 
-        mmgraph.connect_inter_layers(["TRAMLayer", "METROLayer"], DIST_CONNECTION)
+    # Connect PT layers
+    print('Connect PT layers')
     if USE_BUS:
-        mmgraph.connect_intra_layer("BUSLayer", DIST_CONNECTION)
-    mmgraph.connect_intra_layer("TRAMLayer", DIST_CONNECTION)
-    mmgraph.connect_intra_layer("METROLayer", DIST_CONNECTION)
+        mmgraph.custom_connect_inter_layers(["BUSLayer", "TRAMLayer", "METROLayer"], DIST_CONNECTION_PT,
+                                        ensure_connect=True, max_connect_dist=DIST_MAX)
+        mmgraph.custom_connect_intra_layer("BUSLayer", DIST_CONNECTION_PT, same_line=False)
+    else:
+        mmgraph.custom_connect_inter_layers(["TRAMLayer", "METROLayer"], DIST_CONNECTION_PT,
+                                            ensure_connect=True, max_connect_dist=DIST_MAX)
+    mmgraph.custom_connect_intra_layer("TRAMLayer", DIST_CONNECTION_PT, same_line=False)
+    mmgraph.custom_connect_intra_layer("METROLayer", DIST_CONNECTION_PT, same_line=False)
 
-    # Connect PT network to emoped # TODO
+    # Connect PT network to emoped #
+    print('Connect PT layers with EMOPED')
+    if USE_BUS:
+        mmgraph.custom_connect_inter_layers(["EMOPEDLayer1", "BUSLayer"], DIST_CONNECTION_MIX,
+                                            ensure_connect=True, max_connect_dist=DIST_MAX)
+        mmgraph.custom_connect_inter_layers(["EMOPEDLayer2", "BUSLayer"], DIST_CONNECTION_MIX,
+                                            ensure_connect=True, max_connect_dist=DIST_MAX)
+    mmgraph.custom_connect_inter_layers(["EMOPEDLayer1", "TRAMLayer"], DIST_CONNECTION_MIX,
+                                        ensure_connect=True, max_connect_dist=DIST_MAX)
+    #mmgraph.custom_connect_inter_layers(["EMOPEDLayer2", "TRAMLayer"], DIST_CONNECTION_MIX,
+    #                                    ensure_connect=True, max_connect_dist=DIST_MAX)
+    mmgraph.custom_connect_inter_layers(["EMOPEDLayer1", "METROLayer"], DIST_CONNECTION_MIX,
+                                        ensure_connect=True, max_connect_dist=DIST_MAX)
+    #mmgraph.custom_connect_inter_layers(["EMOPEDLayer2", "METROLayer"], DIST_CONNECTION_MIX,
+    #                                    ensure_connect=True, max_connect_dist=DIST_MAX)
 
     # Connect odlayer
-    # mmgraph.connect_origindestination_layers(DIST_CONNECTION)
+    #print('Connect OD layer')
+    #mmgraph.connect_origindestination_layers(DIST_CONNECTION_OD)
 
     # Demand
-    demand_file = indir + "/test_all_in_highway_7h_9h.csv"          # Input demand csv
-    # demand_file = indir + "/demand.csv"
+    demand_file = indir + "test_all_in_highway_7h_9h.csv"          # Input demand csv
+    # demand_file = indir + "demand.csv"
 
     demand = CSVDemandManager(demand_file)
-    demand.add_user_observer(CSVUserObserver(outdir + "/user.csv"), user_ids="all")
+    demand.add_user_observer(CSVUserObserver(outdir + "user.csv"), user_ids="all")
 
     # Flow
-    flow_motor = MFDFlowMotor(outfile=outdir + "/flow.csv")
+    flow_motor = MFDFlowMotor(outfile=outdir + "flow.csv")
     if USE_BUS:
         flow_motor.add_reservoir(Reservoir(mmgraph.roads.zones["RES"], ["BUS", "TRAM", "METRO"], calculate_V_MFD))
     else:
         flow_motor.add_reservoir(Reservoir(mmgraph.roads.zones["RES"], ["TRAM", "METRO"], calculate_V_MFD))
 
-    travel_decision = DummyDecisionModel(mmgraph, outfile=outdir + "/path.csv")
+    travel_decision = DummyDecisionModel(mmgraph, outfile=outdir + "path.csv")
 
     supervisor = Supervisor(graph=mmgraph,
                             flow_motor=flow_motor,
                             demand=demand,
-                            decision_model=travel_decision)#outfile=outdir + "/travel_time_link.csv")
+                            decision_model=travel_decision)#outfile=outdir + "travel_time_link.csv")
 
     def gc_emoped1(mlgraph, link, costs):
         gc = (0.33/60 + 20/3600) * link.length / costs['emoped1']['speed']
@@ -167,8 +195,8 @@ if __name__ == '__main__':
 
     supervisor._mlgraph.add_cost_function(layer_id = 'EMOPEDLayer1', cost_name = 'gen_cost',
                                           cost_function = gc_emoped1)
-    supervisor._mlgraph.add_cost_function(layer_id = 'EMOPEDLayer2', cost_name = 'gen_cost',
-                                          cost_function = gc_emoped2)
+    #supervisor._mlgraph.add_cost_function(layer_id = 'EMOPEDLayer2', cost_name = 'gen_cost',
+    #                                      cost_function = gc_emoped2)
     supervisor._mlgraph.add_cost_function(layer_id='METROLayer', cost_name='gen_cost',
                                           cost_function=gc_metro)
     supervisor._mlgraph.add_cost_function(layer_id='TRAMLayer', cost_name='gen_cost',
@@ -179,7 +207,7 @@ if __name__ == '__main__':
     t1 = time.time()
     print(t1-t0, 's loading time')
     print("Start simulation")
-    supervisor.run(Time('07:00:00'), Time('07:10:00'), Dt(minutes=1), 10)
+    supervisor.run(Time('07:00:00'), Time('07:10:00'), Dt(minutes=1), 1)
 
     t2 = time.time()
     print(t2-t1, 's sim time')
