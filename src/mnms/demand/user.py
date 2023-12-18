@@ -719,7 +719,7 @@ class User(TimeDependentSubject):
         self.waited_vehicle = None
         self.requested_service = None
         self.path = None
-        self.notify(tcurrent)
+        #self.notify(tcurrent)
 
     def get_failed_mobility_service(self):
         """Method that finds the mobility service for which user undergone a match

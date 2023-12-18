@@ -207,7 +207,7 @@ if __name__ == '__main__':
     t1 = time.time()
     print(t1-t0, 's loading time')
     print("Start simulation")
-    supervisor.run(Time('07:00:00'), Time('07:10:00'), Dt(minutes=1), 1)
+    supervisor.run(Time('07:01:00'), Time('07:10:00'), Dt(minutes=1), 1)
 
     t2 = time.time()
     print(t2-t1, 's sim time')

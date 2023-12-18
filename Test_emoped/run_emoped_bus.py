@@ -56,10 +56,6 @@ pblayer.create_line("L0R",
                     ["S2R", "S1R", "S0R"],
                     [["2_1"], ["2_1", "1_0"]],
                     timetable=TimeTable.create_table_freq('07:00:00', '08:00:00', Dt(minutes=10)))
-#pblayer.create_line("L0R",
-#                   ["S3R", "S2R", "S1R", "S0R"],
-#                   [["2_3", "3_4", "4_5"], ["1_2", "2_3"], ["0_1", "1_2"], , ],
-#                    timetable=TimeTable.create_table_freq('07:00:00', '08:00:00', Dt(minutes=10)))
 
 odlayer = generate_matching_origin_destination_layer(roads, with_stops=False)
 
@@ -81,6 +77,7 @@ emoped_layer2.add_connected_layers(["BUS"])
 
 print('init demand')
 demand = BaseDemandManager([User("U0", [0, 0], [0, 2000], Time("07:00:30"), ['Bus', 'emoped1', 'emoped2']),
+ User("U0bis", [0, 0], [0, 2000], Time("07:01:00"), ['Bus', 'emoped1', 'emoped2']),
  User("U1", [0, 2000], [0, 1000], Time("07:00:30"), ['emoped1', 'Bus']),
  User("U2", [0, 0], [0, 2000], Time("07:10:00"), ['emoped2', 'Bus']),
  User("U3", [0, 2000], [0, 0], Time("07:30:00"), ['emoped1', 'Bus'])])
