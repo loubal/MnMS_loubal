@@ -77,7 +77,7 @@ emoped_layer2.add_connected_layers(["BUS"])
 
 print('init demand')
 demand = BaseDemandManager([User("U0", [0, 0], [0, 2000], Time("07:00:30"), ['Bus', 'emoped1', 'emoped2']),
- User("U0bis", [0, 0], [0, 2000], Time("07:01:00"), ['Bus', 'emoped1', 'emoped2']),
+ #User("U0bis", [0, 0], [0, 2000], Time("07:01:00"), ['Bus', 'emoped1', 'emoped2']),
  User("U1", [0, 2000], [0, 1000], Time("07:00:30"), ['emoped1', 'Bus']),
  User("U2", [0, 0], [0, 2000], Time("07:10:00"), ['emoped2', 'Bus']),
  User("U3", [0, 2000], [0, 0], Time("07:30:00"), ['emoped1', 'Bus'])])
