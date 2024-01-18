@@ -331,7 +331,10 @@ class Supervisor(object):
 
         ### Initializations
         self.set_random_seed(seed)
+        t1=time()
         self.initialize(tstart)
+        t2=time()
+        print('initialize(tstart)', t2-t1)
         affectation_step = 0
         flow_step = 0
         principal_dt = flow_dt * affectation_factor

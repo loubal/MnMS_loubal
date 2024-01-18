@@ -25,6 +25,7 @@ import pandas as pd
 import numpy as np
 import random
 import time
+import json
 
 # Run Amsterdam pilot for WP5, emoped competition with PT
 
@@ -48,7 +49,7 @@ def calculate_V_MFD(acc):
 
 if __name__ == '__main__':
 
-    t0 = time.time()
+    t0_run = time.time()
 
     USE_BUS = False
 
@@ -78,8 +79,12 @@ if __name__ == '__main__':
                                               [emoped1])
     emoped_layer2 = generate_layer_from_roads(mmgraph.roads, 'EMOPEDLayer2', SharedVehicleLayer, Bike, 7,
                                               [emoped2])
-    emoped_layer1.add_connected_layers(["BUSLayer", "TRAMLayer", "METROLayer"])
-    emoped_layer2.add_connected_layers(["BUSLayer", "TRAMLayer", "METROLayer"])
+    if USE_BUS:
+        emoped_layer1.add_connected_layers(["BUSLayer", "TRAMLayer", "METROLayer"])
+        emoped_layer2.add_connected_layers(["BUSLayer", "TRAMLayer", "METROLayer"])
+    else:
+        emoped_layer1.add_connected_layers(["TRAMLayer", "METROLayer"])
+        emoped_layer2.add_connected_layers(["TRAMLayer", "METROLayer"])
     emoped1.attach_vehicle_observer(CSVVehicleObserver(outdir + "emoped1.csv"))
     emoped2.attach_vehicle_observer(CSVVehicleObserver(outdir + "emoped2.csv"))
 
@@ -115,8 +120,9 @@ if __name__ == '__main__':
         mmgraph = MultiLayerGraph(
             [mmgraph.layers["TRAMLayer"], mmgraph.layers["METROLayer"],
              emoped_layer1, emoped_layer2], odlayer, DIST_CONNECTION_OD)
-    mmgraph = MultiLayerGraph(
-        [mmgraph.layers["TRAMLayer"], mmgraph.layers["METROLayer"], emoped_layer1], odlayer, DIST_CONNECTION_OD)
+        mmgraph = MultiLayerGraph(
+            [mmgraph.layers["TRAMLayer"], mmgraph.layers["METROLayer"],
+             emoped_layer1], odlayer, DIST_CONNECTION_OD)
 
     # Connect PT layers
     print('Connect PT layers')
@@ -131,7 +137,7 @@ if __name__ == '__main__':
     mmgraph.custom_connect_intra_layer("METROLayer", DIST_CONNECTION_PT, same_line=False)
 
     # Connect PT network to emoped #
-    '''print('Connect PT layers with EMOPED')
+    """print('Connect PT layers with EMOPED')
     if USE_BUS:
         mmgraph.custom_connect_inter_layers(["EMOPEDLayer1", "BUSLayer"], DIST_CONNECTION_MIX,
                                             ensure_connect=True, max_connect_dist=DIST_MAX)
@@ -144,14 +150,14 @@ if __name__ == '__main__':
     mmgraph.custom_connect_inter_layers(["EMOPEDLayer1", "METROLayer"], DIST_CONNECTION_MIX,
                                         ensure_connect=True, max_connect_dist=DIST_MAX)
     mmgraph.custom_connect_inter_layers(["EMOPEDLayer2", "METROLayer"], DIST_CONNECTION_MIX,
-                                        ensure_connect=True, max_connect_dist=DIST_MAX)'''
+                                        ensure_connect=True, max_connect_dist=DIST_MAX)"""
 
     # Connect odlayer
     #print('Connect OD layer')
     #mmgraph.connect_origindestination_layers(DIST_CONNECTION_OD)
 
     # Demand
-    demand_file = indir + "test_all_in_highway_7h_9h.csv"          # Input demand csv
+    demand_file = indir + "custom_demand.csv"          # Input demand csv
     # demand_file = indir + "demand.csv"
 
     demand = CSVDemandManager(demand_file)
@@ -164,7 +170,7 @@ if __name__ == '__main__':
     else:
         flow_motor.add_reservoir(Reservoir(mmgraph.roads.zones["RES"], ["BIKE", "TRAM", "METRO"], calculate_V_MFD))
 
-    travel_decision = DummyDecisionModel(mmgraph, outfile=outdir + "path.csv")
+    travel_decision = DummyDecisionModel(mmgraph, outfile=outdir + "path.csv", cost='gen_cost')
 
     supervisor = Supervisor(graph=mmgraph,
                             flow_motor=flow_motor,
@@ -191,6 +197,10 @@ if __name__ == '__main__':
         gc = VOT * link.length / costs['TRAM']['speed']
         return gc
 
+    def gc_transit(mlgraph, link, costs):
+        gc = VOT * link.length / 1
+        return gc
+
     supervisor._mlgraph.add_cost_function(layer_id = 'EMOPEDLayer1', cost_name = 'gen_cost',
                                           cost_function = gc_emoped1)
     #supervisor._mlgraph.add_cost_function(layer_id = 'EMOPEDLayer2', cost_name = 'gen_cost',
@@ -202,10 +212,12 @@ if __name__ == '__main__':
     if USE_BUS:
         supervisor._mlgraph.add_cost_function(layer_id='BUSLayer', cost_name='gen_cost',
                                               cost_function=gc_bus)
-    t1 = time.time()
-    print(t1-t0, 's loading time')
+    supervisor._mlgraph.add_cost_function(layer_id='TRANSIT', cost_name='gen_cost',
+                                          cost_function=gc_transit)
+    t1_run = time.time()
+    print(t1_run-t0_run, 's loading time')
     print("Start simulation")
     supervisor.run(Time('07:00:00'), Time('07:05:00'), Dt(minutes=1), 1)
 
-    t2 = time.time()
-    print(t2-t1, 's sim time')
+    t2_run = time.time()
+    print(t2_run-t1_run, 's sim time')
