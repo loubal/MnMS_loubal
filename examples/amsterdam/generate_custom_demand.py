@@ -8,7 +8,7 @@ fname_out = 'inputs/custom_demand.csv'
 t_start = 7*3600
 t_end = 9*3600
 modes = ['car', 'walk', 'bike', 'taxi', 'pt']
-ratio = 0.01
+ratio = 0.5
 polygon = np.asarray([
     [628000, 5.81e6],
     [632500, 5.808e6],
@@ -21,6 +21,7 @@ polygon = np.asarray([
     [625500, 5.803e6],
     [625500, 5.806e6]
 ])
+min_dist = 500 # m
 
 df_dmd_all = pd.read_csv(fname_in, sep=';')
 
@@ -44,4 +45,6 @@ nb_sample = int(len(df_dmd)*ratio)
 df_sample = df_dmd.sample(nb_sample)
 df_sample.sort_values(by='dept_float', inplace=True)
 df_sample.drop(columns=['SERVICE', 'dept_float'], inplace=True)
+
+
 df_sample.to_csv(fname_out, sep = ';', index = False)

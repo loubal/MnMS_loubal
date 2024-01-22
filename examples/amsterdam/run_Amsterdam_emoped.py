@@ -79,8 +79,8 @@ if __name__ == '__main__':
     df_emoped1 = pd.read_csv(indir + 'init_pos_emoped.csv')
     df_emoped2 = pd.read_csv(indir + 'init_pos_emoped.csv')
 
-    emoped1 = VehicleSharingMobilityService("emoped1", free_floating_possible=False, dt_matching=0)
-    emoped2 = VehicleSharingMobilityService("emoped2", free_floating_possible=False, dt_matching=0)
+    emoped1 = VehicleSharingMobilityService("emoped1", free_floating_possible=True, dt_matching=0)
+    emoped2 = VehicleSharingMobilityService("emoped2", free_floating_possible=True, dt_matching=0)
     emoped_layer1 = generate_layer_from_roads(mmgraph.roads, 'EMOPEDLayer1', SharedVehicleLayer, Bike, 7,
                                               [emoped1])
     emoped_layer2 = generate_layer_from_roads(mmgraph.roads, 'EMOPEDLayer2', SharedVehicleLayer, Bike, 7,
