@@ -3,13 +3,15 @@ import json
 # Define parameters for the Amsterdam emoped simulation
 
 params = {
-    # Filenames
+# Filenames
 'indir' : "INPUTS/",
 'outdir' : "OUTPUTS/",
 'fn_network' : "network_pt_short.json",
 'fn_odlayer' : "od_layer_clustered_200.json",
 'fn_transit' : "",
 'fn_demand' : "custom_demand.csv",
+'fn_emoped_ff_init' : "init_pos_emoped.csv",
+'fn_emoped_st_init' : "emoped_stations.csv",
 
 # Vehicles speeds
 'V_EMOPED' : 7,
@@ -29,4 +31,5 @@ params = {
 'FEE_EMOPED_BASE' : 1
 }
 
-json.dump(params, 'params.json')
+with open('params.json', 'w') as f:
+    json.dump(params, f, indent=4)

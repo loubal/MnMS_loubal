@@ -28,6 +28,12 @@ import time
 import json
 
 # Run Amsterdam pilot for WP5, emoped competition with PT
+###############
+
+
+# Load parmaeters
+f = open('params.json')
+params = json.load(f)
 
 indir = "INPUTS/"
 outdir = "OUTPUTS/"
@@ -41,7 +47,7 @@ attach_log_file(outdir + 'simulation.log')
 # 'DESTINATION_R_82604106' 'ORIGIN_E_83202447'
 
 def calculate_V_MFD(acc):
-    V_EMOPED = 7
+    V_EMOPED = params['V_EMOPED']
     V_BUS = 9
     V_TRAM = 11
     V_METRO = 13
@@ -51,10 +57,10 @@ if __name__ == '__main__':
 
     t0_run = time.time()
 
-    USE_BUS = False
+    USE_BUS = True
 
     # Transit connection (m)
-    DIST_MAX = 500
+    DIST_MAX = params['DIST_MAX']
     DIST_CONNECTION_OD = 200
     DIST_CONNECTION_PT = 100
     DIST_CONNECTION_MIX = 100
@@ -73,8 +79,8 @@ if __name__ == '__main__':
     df_emoped1 = pd.read_csv(indir + 'init_pos_emoped.csv')
     df_emoped2 = pd.read_csv(indir + 'init_pos_emoped.csv')
 
-    emoped1 = VehicleSharingMobilityService("emoped1", free_floating_possible=True, dt_matching=0)
-    emoped2 = VehicleSharingMobilityService("emoped2", free_floating_possible=True, dt_matching=0)
+    emoped1 = VehicleSharingMobilityService("emoped1", free_floating_possible=False, dt_matching=0)
+    emoped2 = VehicleSharingMobilityService("emoped2", free_floating_possible=False, dt_matching=0)
     emoped_layer1 = generate_layer_from_roads(mmgraph.roads, 'EMOPEDLayer1', SharedVehicleLayer, Bike, 7,
                                               [emoped1])
     emoped_layer2 = generate_layer_from_roads(mmgraph.roads, 'EMOPEDLayer2', SharedVehicleLayer, Bike, 7,
