@@ -22,6 +22,7 @@ from mnms.time import Time, Dt
 from mnms.io.graph import load_graph, load_odlayer, save_odlayer
 from mnms.travel_decision.logit import LogitDecisionModel
 from mnms.travel_decision.dummy import DummyDecisionModel
+from mnms.travel_decision.custom_decision import CustomDecisionModel
 from mnms.tools.observer import CSVUserObserver, CSVVehicleObserver
 from mnms.generation.layers import generate_layer_from_roads
 from mnms.mobility_service.personal_vehicle import PersonalMobilityService
@@ -37,6 +38,9 @@ from mnms.tools.render import draw_roads
 ## Parameters file
 f = open('params.json')
 params = json.load(f)
+
+## Mobility service parameters
+USE_EMOPED = True
 
 ## Directories and files
 CURRENT_DIR = str(os.path.dirname(os.path.abspath(__file__)))
@@ -59,9 +63,6 @@ FLOW_OUTFILE = OUTDIR + "flow.csv"
 LOG_LEVEL = LOGLEVEL.INFO
 OBSERVERS = True
 
-## Public transportation parameters
-USE_BUS = False
-
 ## Flow dynamics parameters
 V_EMOPED = params['V_EMOPED'] # m/s
 V_BUS = params['V_BUS'] # m/s
@@ -70,22 +71,31 @@ V_METRO = params['V_METRO'] # m/s
 WALK_SPEED = 1.42 # m/s
 
 ## MultiLayerGraph creation
-DIST_MAX = 500 # m
-DIST_CONNECTION_OD = 500 # m
-DIST_CONNECTION_PT = 100 # m
-DIST_CONNECTION_MIX = 100 # m
+DIST_MAX = params['DIST_MAX'] # m
+DIST_CONNECTION_OD = params['DIST_CONNECTION_OD'] # m
+DIST_CONNECTION_PT = params['DIST_CONNECTION_PT'] # m
+DIST_CONNECTION_MIX = params['DIST_CONNECTION_MIX'] # m
 
 ## EMOPED operation
 EMOPED_DT_MATCHING = 0
+STATION_CAPACITY = 100
 
 ## Costs
 COST_NAME = 'gen_cost'
 VOT = params['VOT'] # euro/s
 FEE_MOPED_TIME = params['FEE_EMOPED_TIME'] # euro/s
 
+## Paths choices - # considered modes, packages, nb_paths
+if USE_EMOPED:
+    considered_modes = [({'BUSLayer', 'TRAMLayer', 'METROLayer'}, None, 1),
+                        ({'EMOPEDLayer1'},None,1),
+                        ({'BUSLayer', 'TRAMLayer', 'METROLayer', 'EMOPEDLayer1'}, ({'EMOPEDLayer1'}, {'BUSLayer', 'TRAMLayer', 'METROLayer'}), 1)]
+else:
+    considered_modes = None
+
 ## Simulation parameters
 START_TIME = Time('06:59:00')
-END_TIME = Time('07:10:00')
+END_TIME = Time('09:30:00')
 DT_FLOW = Dt(minutes=1)
 AFFECTION_FACTOR = 1
 
@@ -132,32 +142,30 @@ def load_mlgraph_from_serialized_data():
 
 @timed
 def connect_intra_and_inter_pt_layers(mlgraph):
-    if USE_BUS:
-        mlgraph.custom_connect_inter_layers(["BUSLayer", "TRAMLayer", "METROLayer"], DIST_CONNECTION_PT,
-                                        ensure_connect=True, max_connect_dist=DIST_MAX)
-        mlgraph.custom_connect_intra_layer("BUSLayer", DIST_CONNECTION_PT, same_line=False)
-    else:
-        mlgraph.custom_connect_inter_layers(["TRAMLayer", "METROLayer"], DIST_CONNECTION_PT,
-                                            ensure_connect=True, max_connect_dist=DIST_MAX)
+    mlgraph.custom_connect_inter_layers(["BUSLayer", "TRAMLayer", "METROLayer"], DIST_CONNECTION_PT,
+                                    ensure_connect=True, max_connect_dist=DIST_MAX)
+    mlgraph.custom_connect_intra_layer("BUSLayer", DIST_CONNECTION_PT, same_line=False)
     mlgraph.custom_connect_intra_layer("TRAMLayer", DIST_CONNECTION_PT, same_line=False)
     mlgraph.custom_connect_intra_layer("METROLayer", DIST_CONNECTION_PT, same_line=False)
 
 @timed
 def connect_pt_with_emoped_layers(mlgraph):
-    if USE_BUS:
+    if USE_EMOPED:
         mlgraph.custom_connect_inter_layers(["EMOPEDLayer1", "BUSLayer"], DIST_CONNECTION_MIX,
                                             ensure_connect=True, max_connect_dist=DIST_MAX)
-    mlgraph.custom_connect_inter_layers(["EMOPEDLayer1", "TRAMLayer"], DIST_CONNECTION_MIX,
-                                        ensure_connect=True, max_connect_dist=DIST_MAX)
-    mlgraph.custom_connect_inter_layers(["EMOPEDLayer1", "METROLayer"], DIST_CONNECTION_MIX,
-                                        ensure_connect=True, max_connect_dist=DIST_MAX)
+        mlgraph.custom_connect_inter_layers(["EMOPEDLayer1", "TRAMLayer"], DIST_CONNECTION_MIX,
+                                            ensure_connect=True, max_connect_dist=DIST_MAX)
+        mlgraph.custom_connect_inter_layers(["EMOPEDLayer1", "METROLayer"], DIST_CONNECTION_MIX,
+                                            ensure_connect=True, max_connect_dist=DIST_MAX)
+    else:
+        pass
 
 def add_new_cost(mlgraph):
-    mlgraph.add_cost_function('EMOPEDLayer1', COST_NAME, gc_emoped1)
+    if USE_EMOPED:
+        mlgraph.add_cost_function('EMOPEDLayer1', COST_NAME, gc_emoped1)
     mlgraph.add_cost_function('METROLayer', COST_NAME, gc_metro)
     mlgraph.add_cost_function('TRAMLayer', COST_NAME, gc_tram)
-    if USE_BUS:
-        mlgraph.add_cost_function('BUSLayer', COST_NAME, gc_bus)
+    mlgraph.add_cost_function('BUSLayer', COST_NAME, gc_bus)
     mlgraph.add_cost_function('TRANSIT', COST_NAME, gc_transit)
 
 def calculate_V_MFD(acc, V_EMOPED=V_EMOPED, V_BUS=V_BUS, V_TRAM=V_TRAM, V_METRO=V_METRO):
@@ -175,9 +183,9 @@ def create_supervisor():
     ## Define OBSERVERS
     metro_veh_observer = CSVVehicleObserver(METROVEH_OUTFILE) if OBSERVERS else None
     tram_veh_observer = CSVVehicleObserver(TRAMVEH_OUTFILE) if OBSERVERS else None
-    if USE_BUS:
-        bus_veh_observer = CSVVehicleObserver(BUSVEH_OUTFILE) if OBSERVERS else None
-    emoped1_veh_observer = CSVVehicleObserver(EMOPED1VEH_OUTFILE) if OBSERVERS else None
+    bus_veh_observer = CSVVehicleObserver(BUSVEH_OUTFILE) if OBSERVERS else None
+    if USE_EMOPED:
+        emoped1_veh_observer = CSVVehicleObserver(EMOPED1VEH_OUTFILE) if OBSERVERS else None
 
     ## Metro
     metro_layer = loaded_mlgraph.layers['METROLayer']
@@ -189,36 +197,36 @@ def create_supervisor():
     tram_service = tram_layer.mobility_services['TRAM']
     tram_service.attach_vehicle_observer(tram_veh_observer)
 
-    ## Bus if required
-    if USE_BUS:
-        bus_layer = loaded_mlgraph.layers['BUSLayer']
-        bus_service = bus_layer.mobility_services['BUS']
-        bus_service.attach_vehicle_observer(bus_veh_observer)
+    ## Bus
+    bus_layer = loaded_mlgraph.layers['BUSLayer']
+    bus_service = bus_layer.mobility_services['BUS']
+    bus_service.attach_vehicle_observer(bus_veh_observer)
 
     ## EMOPED company 1
-    emoped1 = VehicleSharingMobilityService("emoped1", free_floating_possible=False, dt_matching=EMOPED_DT_MATCHING)
-    emoped_layer1 = generate_layer_from_roads(roads, 'EMOPEDLayer1', SharedVehicleLayer, Bike, V_EMOPED,
-                                              [emoped1])
-    emoped1.attach_vehicle_observer(emoped1_veh_observer)
-    if USE_BUS:
+    if USE_EMOPED:
+        emoped1 = VehicleSharingMobilityService("emoped1", free_floating_possible=False, dt_matching=EMOPED_DT_MATCHING)
+        emoped_layer1 = generate_layer_from_roads(roads, 'EMOPEDLayer1', SharedVehicleLayer, Bike, V_EMOPED,
+                                                  [emoped1])
+        emoped1.attach_vehicle_observer(emoped1_veh_observer)
         emoped_layer1.add_connected_layers(["BUSLayer", "TRAMLayer", "METROLayer"])
-    else:
-        emoped_layer1.add_connected_layers(["TRAMLayer", "METROLayer"])
 
     ## Add emoped stations
-    df_sta_emoped = pd.read_csv(STATION_EMOPED)
-    for i, row in df_sta_emoped.iterrows():
-        node = row['closest_node']
-        nb_emoped = row['nb_emoped']
-        emoped1.create_station(id_station='station'+str(i), dbroads_node=node,
-                               nb_initial_veh=nb_emoped, free_floating=False)
+    if USE_EMOPED:
+        df_sta_emoped = pd.read_csv(STATION_EMOPED)
+        for i, row in df_sta_emoped.iterrows():
+            node = row['closest_node']
+            nb_emoped = row['nb_emoped']
+            emoped1.create_station(id_station='station'+str(i), dbroads_node=node,
+                                   nb_initial_veh=nb_emoped, free_floating=False, capacity=STATION_CAPACITY)
+            #emoped1.create_station(id_station='station' + str(i), dbroads_node=node,
+            #                       nb_initial_veh=100, free_floating=False, capacity=1000)
 
     ## MLGraph with all layers, including odlayer, do the connections between ODLayer and other layers directly
-    if USE_BUS:
+    if USE_EMOPED:
         mlgraph = MultiLayerGraph([bus_layer, tram_layer, metro_layer, emoped_layer1],
             odlayer, DIST_CONNECTION_OD)
     else:
-        mlgraph = MultiLayerGraph([tram_layer, metro_layer, emoped_layer1],
+        mlgraph = MultiLayerGraph([bus_layer, tram_layer, metro_layer],
             odlayer, DIST_CONNECTION_OD)
 
     # Add the transit links intra and inter layers
@@ -235,15 +243,15 @@ def create_supervisor():
 
     #### Decison Model ####
     #######################
-    travel_decision = DummyDecisionModel(mlgraph, outfile=PATHS_OUTFILE, cost=COST_NAME)
+    travel_decision = CustomDecisionModel(mlgraph, considered_modes=considered_modes, outfile=PATHS_OUTFILE, cost=COST_NAME)
 
     #### Flow motor ####
     ####################
     flow_motor = MFDFlowMotor(outfile=FLOW_OUTFILE)
-    if USE_BUS:
+    if USE_EMOPED:
         flow_motor.add_reservoir(Reservoir(mlgraph.roads.zones["RES"], ["BIKE", "BUS", "TRAM", "METRO"], calculate_V_MFD))
     else:
-        flow_motor.add_reservoir(Reservoir(mlgraph.roads.zones["RES"], ["BIKE", "TRAM", "METRO"], calculate_V_MFD))
+        flow_motor.add_reservoir(Reservoir(mlgraph.roads.zones["RES"], ["BUS", "TRAM", "METRO"], calculate_V_MFD))
 
     #### Supervisor ####
     ####################
