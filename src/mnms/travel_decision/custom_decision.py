@@ -44,6 +44,8 @@ class CustomDecisionModel(AbstractDecisionModel):
                 cost_add += 1 # EUR, like daily abo
             if use_emoped and not use_pt:
                 cost_add += 0 # EUR, tax
+            if use_emoped and use_pt:
+                cost_add -= 0 # EUR, subsidy
             costs[i] += cost_add
 
         # Sort paths by ascending cost before returning the best path

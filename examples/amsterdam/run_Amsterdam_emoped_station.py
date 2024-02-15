@@ -79,6 +79,7 @@ DIST_CONNECTION_MIX = params['DIST_CONNECTION_MIX'] # m
 ## EMOPED operation
 EMOPED_DT_MATCHING = 0
 STATION_CAPACITY = 100
+PENALTY_NO_EMOPED = 1800 #s
 
 ## Costs
 COST_NAME = 'gen_cost'
@@ -92,6 +93,7 @@ if USE_EMOPED:
                         ({'BUSLayer', 'TRAMLayer', 'METROLayer', 'EMOPEDLayer1'}, ({'EMOPEDLayer1'}, {'BUSLayer', 'TRAMLayer', 'METROLayer'}), 1)]
 else:
     considered_modes = None
+#considered_modes = None
 
 ## Simulation parameters
 START_TIME = Time('06:59:00')
@@ -131,6 +133,18 @@ def gc_tram(mlgraph, link, costs, VOT=VOT):
 
 def gc_transit(mlgraph, link, costs, VOT=VOT, WALK_SPEED=WALK_SPEED):
     gc = VOT * link.length / WALK_SPEED
+    d_node = link.downstream
+    stations = mlgraph.layers['EMOPEDLayer1'].stations
+    station = None
+    for s in stations:
+        if s['node'] == d_node:
+            station = s['id']
+            break
+    if station:
+        mob_service = mlgraph.layers['EMOPEDLayer1'].mobility_services['emoped1']
+        nb_veh = len(mob_service.available_vehicles(station))
+        if nb_veh == 0:
+            gc += VOT*PENALTY_NO_EMOPED
     return gc
 
 @timed
@@ -232,6 +246,19 @@ def create_supervisor():
     # Add the transit links intra and inter layers
     connect_intra_and_inter_pt_layers(mlgraph)
     connect_pt_with_emoped_layers(mlgraph)
+
+    # gather transit links ending in emoped stations
+    names_st_no = ['EMOPEDLayer1_'+cl_no for cl_no in df_sta_emoped['closest_node'].values]
+    transit_per_end_node_station = dict()
+    for cl_no in names_st_no:
+        transit_per_end_node_station[cl_no] = []
+    for layer_id in ['ODLayer','BUSLayer','TRAMLayer','METROLayer']:
+        for l_id in mlgraph.transitlayer.links[layer_id]['EMOPEDLayer1']:
+            #if l_id in mlgraph.graph.links.keys(): # some links removed after PT creation
+            link = mlgraph.graph.links[l_id]
+            if link.downstream in names_st_no:
+                transit_per_end_node_station[link.downstream].append(l_id)
+    emoped1.transit_per_end_node_station = transit_per_end_node_station
 
     # Add new cost
     add_new_cost(mlgraph)

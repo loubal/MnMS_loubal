@@ -66,6 +66,7 @@ class VehicleSharingMobilityService(AbstractMobilityService):
         self.beta = beta
         self.stations = dict()
         self.map_node_station = dict()
+        self.transit_per_end_node_station = dict()
 
     def create_station(self, id_station: str, dbroads_node: str, layer_node:str='', capacity: int=30, nb_initial_veh: int = 0, free_floating=False) \
             -> Station:
@@ -185,6 +186,23 @@ class VehicleSharingMobilityService(AbstractMobilityService):
 
         return vehs
 
+    def call_update_transit_to_station(self, node):
+        costs_functions = self.layer.multi_graph.transitlayer._costs_functions
+        for l_id in self.transit_per_end_node_station[node]:
+            link = self.layer.multi_graph.graph.links[l_id]  # self.graph.links[l_id]
+            costs_old = link.costs
+            costs = dict(dict())
+            # Update critical costs first
+            for mservice in link.costs.keys():
+                costs[mservice] = {'travel_time': costs_old[mservice]['travel_time'],
+                                   'speed': costs_old[mservice]['speed'],
+                                   'length': costs_old[mservice]['length']}
+            # Then update the generalized ones
+            for mservice, cost_funcs in costs_functions.items():
+                for cost_name, cost_f in cost_funcs.items():
+                    costs[mservice][cost_name] = cost_f(self.layer.multi_graph, link, costs)
+            link.update_costs(costs)
+
     def step_maintenance(self, dt: Dt):
         """Method that proceeds to the maintenance phase of this service.
         It associates the stopped vehicles to the existing stations and eventually
@@ -203,6 +221,7 @@ class VehicleSharingMobilityService(AbstractMobilityService):
 
                     if veh not in self.stations[station_id].waiting_vehicles:
                         self.stations[station_id].waiting_vehicles.append(veh)
+                        self.call_update_transit_to_station(_current_node)
                 else:
                     if self.free_floating_possible:
                         self.create_free_floating_station(veh)
@@ -300,6 +319,9 @@ class VehicleSharingMobilityService(AbstractMobilityService):
         station = self.stations[self.map_node_station[user.current_node]]
         # Delete the vehicle from the waiting vehicle list
         station.waiting_vehicles.remove(veh)
+        # Update access cost to the station
+        node = user.current_node
+        self.call_update_transit_to_station(node)
 
         # Delete the station if it is free-floating and empty
         if station.free_floating and len(station.waiting_vehicles) == 0:
