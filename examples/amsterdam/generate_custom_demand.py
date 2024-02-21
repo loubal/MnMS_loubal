@@ -1,26 +1,18 @@
 import numpy as np
 import pandas as pd
 from mnms.tools.geometry import points_in_polygon
+import json
 
 ### Parameters
+f = open('params.json')
+params = json.load(f)
 fname_in = 'inputs/Data_MATSim/demand_all.csv'
 fname_out = 'inputs/custom_demand.csv'
 t_start = 7*3600
 t_end = 9*3600
 modes = ['car', 'walk', 'bike', 'taxi', 'pt']
 ratio = 0.3
-polygon = np.asarray([
-    [628000, 5.81e6],
-    [632500, 5.808e6],
-    [634000, 5.8055e6],
-    [634000, 5.803e6],
-    [633000, 5.801e6],
-    [630500, 5.7995e6],
-    [629000, 5.8e6],
-    [625500, 5.8e6],
-    [625500, 5.803e6],
-    [625500, 5.806e6]
-])
+polygon = np.asarray(params['polygon_demand'])
 dist_min = 500 # m
 
 df_dmd_all = pd.read_csv(fname_in, sep=';')

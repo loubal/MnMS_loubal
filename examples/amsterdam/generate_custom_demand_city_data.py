@@ -17,7 +17,7 @@ modes = ['OV', 'FI'] # PA, OV, FI -> car, PT, bike
 
 labels = [mode+peak+'_trips' for mode in modes]
 
-#ratio = 0.3
+ratio = 0.1
 polygon = np.asarray(params['polygon_demand'])
 dist_min = 250 # m
 
@@ -67,10 +67,14 @@ for i, row in df_dmd.iterrows():
 
 df_agents = pd.DataFrame({'ID': agents_id, 'DEPARTURE':agents_dept_time,
                           'ORIGIN':agents_o, 'DESTINATION':agents_d})
+
+nb_sample = int(len(df_agents)*ratio)
+df_agents = df_agents.sample(nb_sample)
+
 df_agents.sort_values(by = 'DEPARTURE', inplace=True)
 df_agents.reset_index(drop=True, inplace=True)
 
-print('%i agents created from a demand of %.2f' %(i_agent, sum([df_dmd[label].sum() for label in labels])))
+print('%i agents created from a demand of %.2f' %(len(df_agents), sum([df_dmd[label].sum() for label in labels])))
 
 ### Save data
 

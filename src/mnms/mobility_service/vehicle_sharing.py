@@ -227,7 +227,26 @@ class VehicleSharingMobilityService(AbstractMobilityService):
                         self.create_free_floating_station(veh)
 
     def periodic_maintenance(self, dt: Dt):
-        pass
+        list_stations_origin = []
+        list_stations_destination = []
+        for name_station in self.stations:
+            station = self.stations[name_station]
+            nb_veh = len(station.waiting_vehicles)
+            if nb_veh == 0:
+                list_stations_destination.append(name_station)
+            elif nb_veh >= 2:
+                list_stations_origin.append(name_station)
+        nb_moves = min(len(list_stations_origin), len(list_stations_destination))
+        for i in range(nb_moves):
+            veh_name = self.stations[list_stations_origin[i]].waiting_vehicles[0]
+            node_d = self.stations[list_stations_destination[i]].node
+            pos_d = self.layer.graph.nodes[node_d]
+            print(self.fleet.vehicles[veh_name]._position, self.fleet[veh_name]._current_node)
+            self.fleet[veh_name].set_position(node_d.position)
+            print(self.fleet.vehicles[veh_name]._position, self.fleet[veh_name]._current_node)
+
+        self.step_maintenance()
+
 
     def estimate_pickup_time_for_planning(self, pu_node):
         """Method that returns the estimated pickup time at a specific node. This
