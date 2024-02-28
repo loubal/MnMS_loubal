@@ -78,6 +78,7 @@ DIST_CONNECTION_MIX = params['DIST_CONNECTION_MIX'] # m
 
 ## EMOPED operation
 EMOPED_DT_MATCHING = 0
+EMOPED_DT_REBALANCING = 10
 STATION_CAPACITY = 100
 PENALTY_NO_EMOPED = 1800 #s
 
@@ -96,8 +97,8 @@ else:
 #considered_modes = None
 
 ## Simulation parameters
-START_TIME = Time('06:59:00')
-END_TIME = Time('09:30:00')
+START_TIME = Time('15:59:00')
+END_TIME = Time('18:30:00')
 DT_FLOW = Dt(minutes=1)
 AFFECTION_FACTOR = 1
 
@@ -218,9 +219,13 @@ def create_supervisor():
 
     ## EMOPED company 1
     if USE_EMOPED:
-        emoped1 = VehicleSharingMobilityService("emoped1", free_floating_possible=False, dt_matching=EMOPED_DT_MATCHING)
+        emoped1 = VehicleSharingMobilityService("emoped1", free_floating_possible=False, dt_matching=EMOPED_DT_MATCHING,
+                                                dt_step_maintenance=EMOPED_DT_REBALANCING)
+
+        banned_nodes = [k for k in roads.nodes.keys() if ('TRAM' in k or 'BUS' in k or 'METRO' in k)]
+        banned_sections = [k for k in roads.sections.keys() if ('TRAM' in k or 'BUS' in k or 'METRO' in k)]
         emoped_layer1 = generate_layer_from_roads(roads, 'EMOPEDLayer1', SharedVehicleLayer, Bike, V_EMOPED,
-                                                  [emoped1])
+                                                  [emoped1], banned_nodes=banned_nodes, banned_sections=banned_sections)
         emoped1.attach_vehicle_observer(emoped1_veh_observer)
         emoped_layer1.add_connected_layers(["BUSLayer", "TRAMLayer", "METROLayer"])
 
@@ -232,8 +237,6 @@ def create_supervisor():
             nb_emoped = row['nb_emoped']
             emoped1.create_station(id_station='station'+str(i), dbroads_node=node,
                                    nb_initial_veh=nb_emoped, free_floating=False, capacity=STATION_CAPACITY)
-            #emoped1.create_station(id_station='station' + str(i), dbroads_node=node,
-            #                       nb_initial_veh=100, free_floating=False, capacity=1000)
 
     ## MLGraph with all layers, including odlayer, do the connections between ODLayer and other layers directly
     if USE_EMOPED:

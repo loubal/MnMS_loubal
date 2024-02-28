@@ -58,6 +58,8 @@ def generate_layer_from_roads(roads: RoadDescriptor,
                           f"{layer_id}_{data.downstream}",
                           cost,
                           [lid])
+        else:
+            pass
     return layer
 
 

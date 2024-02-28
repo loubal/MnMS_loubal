@@ -11,6 +11,8 @@ from mnms.vehicles.veh_type import VehicleActivityStop, VehicleActivityPickup, V
 from mnms.travel_decision.abstract import Event, AbstractDecisionModel
 from mnms.flow.user_flow import UserFlow
 
+import numpy as np
+
 log = create_logger(__name__)
 
 
@@ -67,6 +69,11 @@ class VehicleSharingMobilityService(AbstractMobilityService):
         self.stations = dict()
         self.map_node_station = dict()
         self.transit_per_end_node_station = dict()
+        self.vip_station_nodes = ['EMOPEDLayer1_m539179315', 'EMOPEDLayer1_m46389719', 'EMOPEDLayer1_m46417048', 'EMOPEDLayer1_m117953801',
+       'EMOPEDLayer1_m4720895761', 'EMOPEDLayer1_m46370638', 'EMOPEDLayer1_m46315031', 'EMOPEDLayer1_m46362856', 'EMOPEDLayer1_m46253922',
+       'EMOPEDLayer1_m3295385662', 'EMOPEDLayer1_m46351126', 'EMOPEDLayer1_m46325757', 'EMOPEDLayer1_m46342032',
+       'EMOPEDLayer1_m2673087285', 'EMOPEDLayer1_m1565648166', 'EMOPEDLayer1_m46343001', 'EMOPEDLayer1_m46398731',
+       'EMOPEDLayer1_m2300133147', 'EMOPEDLayer1_m46341586', 'EMOPEDLayer1_m6316199']
 
     def create_station(self, id_station: str, dbroads_node: str, layer_node:str='', capacity: int=30, nb_initial_veh: int = 0, free_floating=False) \
             -> Station:
@@ -187,6 +194,7 @@ class VehicleSharingMobilityService(AbstractMobilityService):
         return vehs
 
     def call_update_transit_to_station(self, node):
+        # Update cost of transit link leading to station, meant to account for change in available vehicles
         costs_functions = self.layer.multi_graph.transitlayer._costs_functions
         for l_id in self.transit_per_end_node_station[node]:
             link = self.layer.multi_graph.graph.links[l_id]  # self.graph.links[l_id]
@@ -227,25 +235,54 @@ class VehicleSharingMobilityService(AbstractMobilityService):
                         self.create_free_floating_station(veh)
 
     def periodic_maintenance(self, dt: Dt):
-        list_stations_origin = []
-        list_stations_destination = []
-        for name_station in self.stations:
-            station = self.stations[name_station]
-            nb_veh = len(station.waiting_vehicles)
-            if nb_veh == 0:
-                list_stations_destination.append(name_station)
-            elif nb_veh >= 2:
-                list_stations_origin.append(name_station)
-        nb_moves = min(len(list_stations_origin), len(list_stations_destination))
-        for i in range(nb_moves):
-            veh_name = self.stations[list_stations_origin[i]].waiting_vehicles[0]
-            node_d = self.stations[list_stations_destination[i]].node
-            pos_d = self.layer.graph.nodes[node_d]
-            print(self.fleet.vehicles[veh_name]._position, self.fleet[veh_name]._current_node)
-            self.fleet[veh_name].set_position(node_d.position)
-            print(self.fleet.vehicles[veh_name]._position, self.fleet[veh_name]._current_node)
+        if False:
+            list_stations_origin = []
+            list_stations_destination = []
+            for name_station in self.stations:
+                station = self.stations[name_station]
+                nb_veh = len(station.waiting_vehicles)
+                if nb_veh == 0:
+                    list_stations_destination.append(name_station)
+                elif nb_veh >= 2:
+                    list_stations_origin.append(name_station)
+            nb_moves = min(len(list_stations_origin), len(list_stations_destination))
+            for i in range(nb_moves):
+                veh = self.stations[list_stations_origin[i]].waiting_vehicles[0]
+                node_d_name = self.stations[list_stations_destination[i]].node
+                node_d = self.layer.graph.nodes[node_d_name]
+                #veh.set_position(node_d.position)
+                veh.set_position(node_d.position)
+                veh._current_node = node_d_name
+                veh._current_link = None
+                veh.activity.node = node_d_name
+                veh.notify(self._tcurrent)
+                self.stations[list_stations_origin[i]].waiting_vehicles.remove(veh)
 
-        self.step_maintenance()
+        if True:
+            stopped_veh = [veh for veh in self.fleet.vehicles.values() if veh.activity_type == ActivityType.STOP]
+            list_dist = np.asarray([v.distance for v in stopped_veh])
+            veh_to_move = np.argsort(list_dist)[:10]
+            stations_vip = [self.map_node_station[node_name] for node_name in self.vip_station_nodes]
+            nb_veh_vip = np.asarray([len(self.stations[sta].waiting_vehicles) for sta in stations_vip])
+            sta_to_fill = np.argsort(nb_veh_vip)[:10]
+            for i, i_veh in enumerate(veh_to_move):
+                veh = stopped_veh[i_veh]
+                station = self.stations[self.map_node_station[veh._current_node]]
+                station.waiting_vehicles.remove(veh)
+
+                #station_d = stations_vip[i]
+                i_sta = sta_to_fill[i]
+                node_d_name = self.vip_station_nodes[i_sta]
+                node_d = self.layer.graph.nodes[node_d_name]
+                # station_d = self.map_node_station[node_d_name]
+
+                veh.set_position(node_d.position)
+                veh._current_node = node_d_name
+                veh._current_link = None
+                veh.activity.node = node_d_name
+                veh.notify(self._tcurrent)
+
+        self.step_maintenance(dt)
 
 
     def estimate_pickup_time_for_planning(self, pu_node):
