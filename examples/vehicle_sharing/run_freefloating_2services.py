@@ -1,6 +1,6 @@
 import pathlib
 from mnms.generation.roads import generate_manhattan_road
-from mnms.mobility_service.vehicle_sharing import OnVehicleSharingMobilityService
+from mnms.mobility_service.vehicle_sharing import VehicleSharingMobilityService
 from mnms.tools.observer import CSVVehicleObserver, CSVUserObserver
 from mnms.generation.layers import generate_layer_from_roads, generate_grid_origin_destination_layer
 from mnms.graph.layers import SharedVehicleLayer, MultiLayerGraph
@@ -24,15 +24,15 @@ attach_log_file('simulation.log')
 road_db = generate_manhattan_road(5, 1000, prefix='I_')
 
 # Vehicle sharing mobility service
-ff_velov1 = OnVehicleSharingMobilityService("ff_velov1", 1, 0)
-ff_velov2 = OnVehicleSharingMobilityService("ff_velov2", 1, 0)
+ff_velov1 = VehicleSharingMobilityService("ff_velov1", 1, 0)
+ff_velov2 = VehicleSharingMobilityService("ff_velov2", 1, 0)
+ff_velov1.attach_vehicle_observer(CSVVehicleObserver("velov1.csv"))
+ff_velov2.attach_vehicle_observer(CSVVehicleObserver("velov2.csv"))
 
 print('Generate layers')
 
-velov_layer1 = SharedVehicleLayer(road_db, 'velov_layer1', Bike, 3, services=[ff_velov1], observer=CSVVehicleObserver("velov1.csv"), prefix='vl1')
-velov_layer2 = SharedVehicleLayer(road_db, 'velov_layer2', Bike, 3, services=[ff_velov2], observer=CSVVehicleObserver("velov2.csv"), prefix='vl2')
-
-
+velov_layer1 = generate_layer_from_roads(road_db, 'velov_layer1', SharedVehicleLayer, Bike, 3, [ff_velov1])
+velov_layer2 = generate_layer_from_roads(road_db, 'velov_layer2', SharedVehicleLayer, Bike, 3, [ff_velov2])
 
 # OD layer
 #odlayer = generate_grid_origin_destination_layer(-1000, -1000, 6000, 6000, 10, 10)
@@ -42,8 +42,8 @@ odlayer = generate_grid_origin_destination_layer(-1000, -1000, 3000, 3000, 5, 5)
 mlgraph = MultiLayerGraph([velov_layer1, velov_layer2],odlayer)
 
 # Add free-floating vehicle
-ff_velov1.init_free_floating_vehicles('vl1I_2',1)
-ff_velov2.init_free_floating_vehicles('vl2I_2',1)
+ff_velov1.init_free_floating_vehicles('I_2',1)
+ff_velov2.init_free_floating_vehicles('I_2',1)
 
 # Connect od layer and velov layer
 mlgraph.connect_origindestination_layers(500)

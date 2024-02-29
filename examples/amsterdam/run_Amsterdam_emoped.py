@@ -2,8 +2,7 @@ import os
 import matplotlib.pyplot as plt
 from mnms.graph.layers import SharedVehicleLayer
 
-from mnms.mobility_service.on_demand import OnDemandDepotMobilityService
-from mnms.mobility_service.vehicle_sharing import OnVehicleSharingMobilityService
+from mnms.mobility_service.vehicle_sharing import VehicleSharingMobilityService
 from mnms.simulation import Supervisor
 from mnms.demand import CSVDemandManager
 from mnms.flow.MFD import Reservoir, MFDFlowMotor
@@ -13,7 +12,7 @@ from mnms.io.graph import load_graph, load_odlayer, save_odlayer
 from mnms.travel_decision.logit import LogitDecisionModel
 from mnms.travel_decision.dummy import DummyDecisionModel
 from mnms.tools.observer import CSVUserObserver, CSVVehicleObserver
-from mnms.generation.layers import generate_bbox_origin_destination_layer, generate_matching_origin_destination_layer
+from mnms.generation.layers import generate_layer_from_roads
 from mnms.mobility_service.personal_vehicle import PersonalMobilityService
 from mnms.mobility_service.public_transport import PublicTransportMobilityService
 from mnms.io.graph import save_transit_link_odlayer, load_transit_links
@@ -73,13 +72,14 @@ if __name__ == '__main__':
     #mmgraph.layers["CAR"].add_mobility_service(personal_car)
 
     # Vehicle sharing mobility service
-    emoped1 = OnVehicleSharingMobilityService("emoped1", free_floating_possible=True, dt_matching=0)
-    emoped2 = OnVehicleSharingMobilityService("emoped2", free_floating_possible=True, dt_matching=0)
+    emoped1 = VehicleSharingMobilityService("emoped1", free_floating_possible=True, dt_matching=0)
+    emoped2 = VehicleSharingMobilityService("emoped2", free_floating_possible=True, dt_matching=0)
+    emoped1.attach_vehicle_observer(CSVVehicleObserver(outdir + "/emoped1.csv"))
+    emoped2.attach_vehicle_observer(CSVVehicleObserver(outdir + "/emoped2.csv"))
 
-    emoped_layer1 = SharedVehicleLayer(mmgraph_pt.roads, 'EMOPEDLayer1', Bike, 7, services=[emoped1],
-                                      observer=CSVVehicleObserver(outdir+"/emoped1.csv"), prefix='em1_')
-    emoped_layer2 = SharedVehicleLayer(mmgraph_pt.roads, 'EMOPEDLayer2', Bike, 7, services=[emoped2],
-                                      observer=CSVVehicleObserver(outdir+"/emoped2.csv"), prefix='em2_')
+    emoped_layer1 = generate_layer_from_roads(mmgraph_pt.roads, 'EMOPEDLayer1', SharedVehicleLayer, Bike, 7, [emoped1])
+    emoped_layer2 = generate_layer_from_roads(mmgraph_pt.roads, 'EMOPEDLayer2', SharedVehicleLayer, Bike, 7, [emoped2])
+
     # Add stations
     #emoped1.init_free_floating_vehicles('em1_1', 1)
     #emoped2.init_free_floating_vehicles('em2_0', 1) #TODO: connect ff emopeds
