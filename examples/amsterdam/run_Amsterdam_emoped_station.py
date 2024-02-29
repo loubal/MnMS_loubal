@@ -220,7 +220,7 @@ def create_supervisor():
     ## EMOPED company 1
     if USE_EMOPED:
         emoped1 = VehicleSharingMobilityService("emoped1", free_floating_possible=False, dt_matching=EMOPED_DT_MATCHING,
-                                                dt_step_maintenance=EMOPED_DT_REBALANCING)
+                                                dt_periodic_maintenance=EMOPED_DT_REBALANCING)
 
         banned_nodes = [k for k in roads.nodes.keys() if ('TRAM' in k or 'BUS' in k or 'METRO' in k)]
         banned_sections = [k for k in roads.sections.keys() if ('TRAM' in k or 'BUS' in k or 'METRO' in k)]
@@ -274,6 +274,7 @@ def create_supervisor():
     #### Decison Model ####
     #######################
     travel_decision = CustomDecisionModel(mlgraph, considered_modes=considered_modes, outfile=PATHS_OUTFILE, cost=COST_NAME)
+    travel_decision.add_waiting_cost_function(COST_NAME, lambda wt: VOT*wt)
 
     #### Flow motor ####
     ####################
