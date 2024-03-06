@@ -98,7 +98,7 @@ else:
 
 ## Simulation parameters
 START_TIME = Time('15:59:00')
-END_TIME = Time('18:30:00')
+END_TIME = Time('19:00:00')
 DT_FLOW = Dt(minutes=1)
 AFFECTION_FACTOR = 1
 

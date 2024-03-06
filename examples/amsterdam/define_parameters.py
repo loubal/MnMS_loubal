@@ -15,7 +15,7 @@ params = {
 'fn_emoped_st_init' : "emoped_stations600.csv",
 
 # Vehicles speeds
-'V_EMOPED' : 7,
+'V_EMOPED' : 7.5,
 'V_BUS' : 5.5,
 'V_TRAM' : 8.3,
 'V_METRO' : 13,
