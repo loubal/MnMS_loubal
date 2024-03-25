@@ -9,12 +9,13 @@ from mnms.tools.geometry import points_in_polygon
 #params = json.load(f)
 
 fname_in = 'inputs/demand_city_hex_9_in_out.csv'
-#fname_out = 'inputs/custom_demand_city_full_tcs.csv'
-fname_out = 'inputs/demand_city_cars.csv'
+fname_out = 'inputs/custom_demand_city_full_tcs.csv'
+#fname_out = 'inputs/demand_city_cars.csv'
 T_START = 16*3600
 T_END = 18*3600
 PEAK = 'AS' # OS, AS, RD -> 7-9/16-18/off
-MODES = ['PA'] # PA, OV, FI -> car, PT, bike
+MODES = ['PA', 'OV', 'FI'] # PA, OV, FI -> car, PT, bike
+#MODES = ['PA'] # PA, OV, FI -> car, PT, bike
 
 labels = [mode+PEAK+'_trips' for mode in MODES]
 
@@ -79,7 +80,7 @@ for i, row in df_dmd.iterrows():
 
 df_agents = pd.DataFrame({'ID': agents_id, 'DEPARTURE':agents_dept_time,
                           'ORIGIN':agents_o, 'DESTINATION':agents_d})
-df_agents['MOBILITY SERVICES'] = ['CAR']*len(df_agents)
+#df_agents['MOBILITY SERVICES'] = ['CAR']*len(df_agents)
 
 df_agents.sort_values(by='DEPARTURE', inplace=True)
 

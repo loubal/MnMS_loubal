@@ -18,7 +18,7 @@ from mnms.flow.MFD import Reservoir, MFDFlowMotor
 from mnms.log import attach_log_file, LOGLEVEL, get_logger, set_all_mnms_logger_level, set_mnms_logger_level
 from mnms.time import Time, Dt
 from mnms.io.graph import load_graph, load_odlayer, save_odlayer
-from mnms.travel_decision.custom_decision import CustomDecisionModel
+from mnms.travel_decision.logit import LogitDecisionModel
 from mnms.tools.observer import CSVUserObserver, CSVVehicleObserver
 from mnms.generation.layers import generate_layer_from_roads
 from mnms.mobility_service.personal_vehicle import PersonalMobilityService
@@ -80,7 +80,7 @@ USE_PT = True
 
 ## Simulation parameters
 START_TIME = Time('15:59:00')
-END_TIME = Time('19:00:00')
+END_TIME = Time('16:30:00')
 DT_FLOW = Dt(seconds=60)
 AFFECTION_FACTOR = 1
 
@@ -98,27 +98,27 @@ def timed(func):
         return result
     return decorator
 
-def gc_car(mlgraph, link, costs, VOT=VOT):
+def gc_car(gnodes, link, costs, VOT=VOT):
     gc = VOT * link.length / costs['CAR']['speed']
     return gc
 
-def gc_metro(mlgraph, link, costs, VOT=VOT):
+def gc_metro(gnodes, link, costs, VOT=VOT):
     gc = VOT * link.length / costs['METRO']['speed']
     return gc
 
-def gc_bus(mlgraph, link, costs, VOT=VOT):
+def gc_bus(gnodes, link, costs, VOT=VOT):
     gc = VOT * link.length / costs['BUS']['speed']
     return gc
 
-def gc_tram(mlgraph, link, costs, VOT=VOT):
+def gc_tram(gnodes, link, costs, VOT=VOT):
     gc = VOT * link.length / costs['TRAM']['speed']
     return gc
 
-def gc_bike(mlgraph, link, costs, VOT=VOT):
+def gc_bike(gnodes, link, costs, VOT=VOT):
     gc = VOT * link.length / costs['BIKE']['speed']
     return gc
 
-def gc_transit(mlgraph, link, costs, p_car=0, VOT=VOT, WALK_SPEED=WALK_SPEED):
+def gc_transit(gnodes, link, costs, p_car=0, VOT=VOT, WALK_SPEED=WALK_SPEED):
     gc = VOT * link.length / WALK_SPEED
     # add toll equivalent if taking a car
     d_node = link.downstream
@@ -233,7 +233,7 @@ def create_supervisor(p_car):
 
     #### Decison Model ####
     #######################
-    travel_decision = CustomDecisionModel(mlgraph, considered_modes=considered_modes, outfile=PATHS_OUTFILE, cost=COST_NAME)
+    travel_decision = LogitDecisionModel(mlgraph, considered_modes=considered_modes, outfile=PATHS_OUTFILE, cost=COST_NAME)
     travel_decision.add_waiting_cost_function(COST_NAME, lambda wt: VOT*wt)
 
     #### Flow motor ####
