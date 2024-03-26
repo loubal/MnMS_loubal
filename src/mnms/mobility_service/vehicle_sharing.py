@@ -258,7 +258,7 @@ class VehicleSharingMobilityService(AbstractMobilityService):
                 veh.notify(self._tcurrent)
                 self.stations[list_stations_origin[i]].waiting_vehicles.remove(veh)
 
-        if True:
+        if False:
             stopped_veh = [veh for veh in self.fleet.vehicles.values() if veh.activity_type == ActivityType.STOP]
             list_dist = np.asarray([v.distance for v in stopped_veh])
             veh_to_move = np.argsort(list_dist)[:10]

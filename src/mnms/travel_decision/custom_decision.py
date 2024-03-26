@@ -7,7 +7,9 @@ from mnms.travel_decision.abstract import AbstractDecisionModel
 
 
 class CustomDecisionModel(AbstractDecisionModel):
-    def __init__(self, mmgraph: MultiLayerGraph, considered_modes=None, cost='travel_time', outfile:str=None, verbose_file=False, personal_mob_service_park_radius:float=100):
+    def __init__(self, mmgraph: MultiLayerGraph, considered_modes=None, cost='travel_time', outfile:str=None,
+                 verbose_file=False, personal_mob_service_park_radius:float=100,
+                 tax_solo=0, subsidy_combined=0):
         """
         Deterministic decision model: the path with the lowest cost is chosen.
 
@@ -25,6 +27,8 @@ class CustomDecisionModel(AbstractDecisionModel):
                                                  n_shortest_path=1, outfile=outfile,
                                                  verbose_file=verbose_file,
                                                  cost=cost, personal_mob_service_park_radius=personal_mob_service_park_radius)
+        self.tax_solo = tax_solo
+        self.subsidy_combined = subsidy_combined
 
     def path_choice(self, paths:List[Path]) -> Path:
         """Method that proceeds to the selection of the path.
@@ -43,9 +47,9 @@ class CustomDecisionModel(AbstractDecisionModel):
             if use_pt:
                 cost_add += 1 # EUR, like daily abo
             if use_emoped and not use_pt:
-                cost_add += 0 # EUR, tax
+                cost_add += self.tax_solo # EUR, tax
             if use_emoped and use_pt:
-                cost_add -= 0 # EUR, subsidy
+                cost_add -= self.subsidy_combined # EUR, subsidy
             costs[i] += cost_add
 
         # Sort paths by ascending cost before returning the best path

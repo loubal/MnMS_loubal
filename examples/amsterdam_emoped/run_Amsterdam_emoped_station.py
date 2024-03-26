@@ -39,13 +39,34 @@ from mnms.tools.render import draw_roads
 f = open('params.json')
 params = json.load(f)
 
+## Policy
+# no tax 0 / tax 1 / subsidy 2 / combined 3
+POLICY=3
+if POLICY==0:
+    tax_solo=0
+    subsidy_combined=0
+    out_subdir = 'notax/'
+elif POLICY==1:
+    tax_solo=1
+    subsidy_combined=0
+    out_subdir = 'tax/'
+elif POLICY==2:
+    tax_solo=0
+    subsidy_combined=1
+    out_subdir = 'subsidy/'
+elif POLICY==3:
+    tax_solo=1
+    subsidy_combined=1
+    out_subdir = 'subsidytax/'
+
+
 ## Mobility service parameters
 USE_EMOPED = True
 
 ## Directories and files
 CURRENT_DIR = str(os.path.dirname(os.path.abspath(__file__)))
 INDIR = CURRENT_DIR + '/inputs/'
-OUTDIR =  CURRENT_DIR + '/outputs/'
+OUTDIR = CURRENT_DIR + '/outputs/' + out_subdir
 LOG_FILE = OUTDIR + 'sim.log'
 SERIALIZED_MLGRAPH = INDIR + params['fn_network']
 SERIALIZED_ODLAYER = INDIR + params['fn_odlayer']
@@ -99,7 +120,7 @@ else:
 ## Simulation parameters
 START_TIME = Time('15:59:00')
 END_TIME = Time('19:00:00')
-DT_FLOW = Dt(minutes=1)
+DT_FLOW = Dt(seconds=60)
 AFFECTION_FACTOR = 1
 
 #################
@@ -273,7 +294,8 @@ def create_supervisor():
 
     #### Decison Model ####
     #######################
-    travel_decision = CustomDecisionModel(mlgraph, considered_modes=considered_modes, outfile=PATHS_OUTFILE, cost=COST_NAME)
+    travel_decision = CustomDecisionModel(mlgraph, considered_modes=considered_modes, outfile=PATHS_OUTFILE, cost=COST_NAME,
+                                          tax_solo=tax_solo, subsidy_combined=subsidy_combined)
     travel_decision.add_waiting_cost_function(COST_NAME, lambda wt: VOT*wt)
 
     #### Flow motor ####

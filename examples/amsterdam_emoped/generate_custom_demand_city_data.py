@@ -13,7 +13,7 @@ fname_out = 'inputs/custom_demand_city_full.csv'
 T_START = 16*3600
 T_END = 18*3600
 PEAK = 'AS' # OS, AS, RD -> 7-9/16-18/off
-MODES = ['OV', 'FI'] # PA, OV, FI -> car, PT, bike
+MODES = ['OV'] # PA, OV, FI -> car, PT, bike
 
 labels = [mode+PEAK+'_trips' for mode in MODES]
 
@@ -61,7 +61,10 @@ i_agent=1
 for i, row in df_dmd.iterrows():
     o = row['O_hex_xy'][1:-1].replace(',','')
     d = row['D_hex_xy'][1:-1].replace(',','')
-    nb_dmd = int(row[labels].sum()+0.5)
+    # nb_dmd = int(row[labels].sum()+0.5)
+    nb_dmd = int(row[labels].sum())
+    if np.random.random() <= row[labels].sum() - nb_dmd:
+        nb_dmd += 1
     for _ in range(nb_dmd):
         td = T_START + np.random.random()*(T_END-T_START)
         td_str = '%02i:%02i:%02i' %(td/3600, np.remainder(td,3600)/60, np.remainder(td,60))

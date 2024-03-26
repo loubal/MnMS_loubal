@@ -1,0 +1,39 @@
+{
+    "indir": "INPUTS/",
+    "outdir": "OUTPUTS/",
+    "figdir": "figures/",
+    "fn_network": "network_pt_short.json",
+    "fn_odlayer": "od_layer_od.json",
+    "fn_transit": "",
+    "fn_demand": "custom_demand_city.csv",
+    "fn_emoped_st_init": "emoped_stations600.csv",
+    "V_EMOPED": 7.5,
+    "V_BUS": 5.5,
+    "V_TRAM": 8.3,
+    "V_METRO": 13,
+    "DIST_MAX": 500,
+    "DIST_CONNECTION_OD": 300,
+    "DIST_CONNECTION_PT": 300,
+    "DIST_CONNECTION_MIX": 300,
+    "VOT": 0.005555555555555556,
+    "FEE_EMOPED_TIME": 0.0055000000000000005,
+    "FEE_EMOPED_BASE": 1,
+    "polygon_demand": [
+        [
+            615000,
+            5813000.0
+        ],
+        [
+            638000,
+            5813000.0
+        ],
+        [
+            638000,
+            5793000.0
+        ],
+        [
+            615000,
+            5793000.0
+        ]
+    ]
+}
