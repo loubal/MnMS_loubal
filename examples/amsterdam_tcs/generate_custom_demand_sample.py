@@ -11,7 +11,7 @@ params = json.load(f)
 fname_in = 'inputs/custom_demand_city_full_tcs.csv'
 fname_out = 'inputs/custom_demand_city_tcs.csv'
 
-RATIO = 0.01
+RATIO = 0.1
 RANDOM_STATE = 79678
 
 ### Take a sample from full demand

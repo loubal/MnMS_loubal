@@ -22,11 +22,8 @@ from mnms.travel_decision.logit import LogitDecisionModel
 from mnms.tools.observer import CSVUserObserver, CSVVehicleObserver
 from mnms.generation.layers import generate_layer_from_roads
 from mnms.mobility_service.personal_vehicle import PersonalMobilityService
-from mnms.mobility_service.public_transport import PublicTransportMobilityService
-from mnms.io.graph import save_transit_link_odlayer, load_transit_links
 from mnms.vehicles.veh_type import Car, Bike
 from mnms.graph.layers import MultiLayerGraph
-from mnms.tools.render import draw_roads
 
 ##################
 ### Parameters ###
@@ -80,7 +77,7 @@ USE_PT = True
 
 ## Simulation parameters
 START_TIME = Time('15:59:00')
-END_TIME = Time('16:30:00')
+END_TIME = Time('19:00:00')
 DT_FLOW = Dt(seconds=60)
 AFFECTION_FACTOR = 1
 
@@ -98,27 +95,27 @@ def timed(func):
         return result
     return decorator
 
-def gc_car(gnodes, link, costs, VOT=VOT):
+def gc_car(gnodes, layer, link, costs, VOT=VOT):
     gc = VOT * link.length / costs['CAR']['speed']
     return gc
 
-def gc_metro(gnodes, link, costs, VOT=VOT):
+def gc_metro(gnodes, layer, link, costs, VOT=VOT):
     gc = VOT * link.length / costs['METRO']['speed']
     return gc
 
-def gc_bus(gnodes, link, costs, VOT=VOT):
+def gc_bus(gnodes, layer, link, costs, VOT=VOT):
     gc = VOT * link.length / costs['BUS']['speed']
     return gc
 
-def gc_tram(gnodes, link, costs, VOT=VOT):
+def gc_tram(gnodes, layer, link, costs, VOT=VOT):
     gc = VOT * link.length / costs['TRAM']['speed']
     return gc
 
-def gc_bike(gnodes, link, costs, VOT=VOT):
+def gc_bike(gnodes, layer, link, costs, VOT=VOT):
     gc = VOT * link.length / costs['BIKE']['speed']
     return gc
 
-def gc_transit(gnodes, link, costs, p_car=0, VOT=VOT, WALK_SPEED=WALK_SPEED):
+def gc_transit(gnodes, layer, link, costs, p_car=0, VOT=VOT, WALK_SPEED=WALK_SPEED):
     gc = VOT * link.length / WALK_SPEED
     # add toll equivalent if taking a car
     d_node = link.downstream
@@ -136,8 +133,8 @@ def load_mlgraph_from_serialized_data():
 
 @timed
 def connect_intra_and_inter_pt_layers(mlgraph):
-    mlgraph.custom_connect_inter_layers(["BUSLayer", "TRAMLayer", "METROLayer"], DIST_CONNECTION_PT,
-                                    ensure_connect=True, max_connect_dist=DIST_MAX)
+    mlgraph.connect_inter_layers(["BUSLayer", "TRAMLayer", "METROLayer"], DIST_CONNECTION_PT,
+                                    extend_connect=True, max_connect_dist=DIST_MAX)
     mlgraph.custom_connect_intra_layer("BUSLayer", DIST_CONNECTION_PT, same_line=False)
     mlgraph.custom_connect_intra_layer("TRAMLayer", DIST_CONNECTION_PT, same_line=False)
     mlgraph.custom_connect_intra_layer("METROLayer", DIST_CONNECTION_PT, same_line=False)
@@ -151,7 +148,7 @@ def add_new_cost(mlgraph, p_car):
         mlgraph.add_cost_function('BUSLayer', COST_NAME, gc_bus)
     if USE_BIKE:
         mlgraph.add_cost_function('BIKELayer', COST_NAME, gc_bike)
-    mlgraph.add_cost_function('TRANSIT', COST_NAME, lambda mlgraph, link, costs: gc_transit(mlgraph, link, costs, p_car=p_car))
+    mlgraph.add_cost_function('TRANSIT', COST_NAME, lambda gnodes, layer, link, costs: gc_transit(gnodes, layer, link, costs, p_car=p_car))
 
 def calculate_V_MFD(acc, V_BUS=V_BUS, V_TRAM=V_TRAM, V_METRO=V_METRO):
     #V_CAR = 13.9*(1-acc['CAR']/5e4)

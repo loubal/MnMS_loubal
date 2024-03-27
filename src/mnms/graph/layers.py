@@ -303,6 +303,49 @@ class MultiLayerGraph(object):
                     connection_distance, secure_connection_distance=secure_connection_distance)
                 self.add_transit_links(transit_links)
 
+    def custom_connect_intra_layer(self, layer_id: str, connection_distance: float, same_line=True):
+        """
+                Connects by a transit link each pair of nodes of the layer within a predefined radius
+                Useful, for example, for a public transport layer to get to another stop
+
+                Args:
+                    connection_distance: each node  is connected to the nodes within a radius defined by
+                        connection_distance (m)
+                    same_line: only for pt, authorize tranist connections between stops whitin the same line
+
+                Returns:
+                    Nothing
+                """
+        # TODO: add closest connections if nothing?
+        _norm = np.linalg.norm
+
+        graph_node_ids = np.array([nid for nid in self.layers[layer_id].graph.nodes])
+        graph_node_pos = np.array([n.position for n in self.layers[layer_id].graph.nodes.values()])
+
+        graph_nodes = self.layers[layer_id].graph.nodes
+        for nid in graph_nodes:
+            if not same_line:
+                oline = \
+                [l for l in self.layers[layer_id].lines.keys() if nid in self.layers[layer_id].lines[l]['nodes']][0]
+            node = graph_nodes[nid]
+            npos = np.array(node.position)
+            dist_nodes = _norm(graph_node_pos - npos, axis=1)
+            mask = dist_nodes < connection_distance
+            for layer_nid, dist in zip(graph_node_ids[mask], dist_nodes[mask]):
+                if not same_line:
+                    dline = [l for l in self.layers[layer_id].lines.keys() if
+                             layer_nid in self.layers[layer_id].lines[l]['nodes']][0]
+                if same_line:
+                    bool_connect = (layer_nid != nid)
+                else:
+                    bool_connect = (oline[:-1] != dline[:-1])  # TODO generalize, for Amsterdam last char is direction
+                if bool_connect:
+                    lid = f"{nid}_{layer_nid}"
+                    self.graph.add_link(lid, nid, layer_nid, dist, {"WALK": {'length': dist}}, "TRANSIT")
+                    self.map_linkid_layerid[lid] = "TRANSIT"
+                    # Add the transit link into the transit layer
+                    self.transitlayer.add_link(lid, layer_id, layer_id)
+
     def connect_intra_layer(self, layer_id: str, connection_distance: float):
         """
         Connects by a transit link each node of a layer to the others within a predefined radius
