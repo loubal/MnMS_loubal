@@ -41,7 +41,7 @@ params = json.load(f)
 
 ## Policy
 # no tax 0 / tax 1 / subsidy 2 / combined 3
-POLICY=3
+POLICY=0
 if POLICY==0:
     tax_solo=0
     subsidy_combined=0

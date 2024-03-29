@@ -81,7 +81,7 @@ class AbstractLayer(CostFunctionLayer):
     # def add_cost_function(self, mobility_service: str, cost_name: str, cost_function: Callable[[Dict[str, float]], float]):
     #     self._costs_functions[mobility_service][cost_name] = cost_function
 
-    def connect_origindestination(self, odlayer:OriginDestinationLayer, connection_distance: float):
+    def connect_origindestination(self, odlayer:OriginDestinationLayer, connection_distance: float, ensure_connect=True):
         """
         Connects the origin destination layer to a layer
 
@@ -110,6 +110,8 @@ class AbstractLayer(CostFunctionLayer):
             npos = np.array(odlayer.origins[nid])
             dist_nodes = _norm(graph_node_pos - npos, axis=1)
             mask = dist_nodes < connection_distance
+            if sum(mask)==0 and ensure_connect:
+                mask[np.argmin(dist_nodes)] = True
             for layer_nid, dist in zip(graph_node_ids[mask], dist_nodes[mask]):
                 if layer_nid not in odlayer_nodes:
                     lid = f"{nid}_{layer_nid}"
@@ -119,6 +121,8 @@ class AbstractLayer(CostFunctionLayer):
             npos = np.array(odlayer.destinations[nid])
             dist_nodes = _norm(graph_node_pos - npos, axis=1)
             mask = dist_nodes < connection_distance
+            if sum(mask)==0 and ensure_connect:
+                mask[np.argmin(dist_nodes)] = True
             for layer_nid, dist in zip(graph_node_ids[mask], dist_nodes[mask]):
                 if layer_nid not in odlayer_nodes:
                     lid = f"{layer_nid}_{nid}"
@@ -800,7 +804,7 @@ class SharedVehicleLayer(AbstractLayer):
 
         self.map_reference_links[lid] = road_links
 
-    def connect_origindestination(self, odlayer: OriginDestinationLayer, connection_distance: float):
+    def connect_origindestination(self, odlayer: OriginDestinationLayer, connection_distance: float, ensure_connect=True):
         """
         Connects the origin destination layer to a shared vehicle layer (only the stations are linked to the origin
         destination nodes
@@ -833,6 +837,8 @@ class SharedVehicleLayer(AbstractLayer):
             npos = np.array(odlayer.origins[nid])
             dist_nodes = _norm(graph_node_pos - npos, axis=1)
             mask = dist_nodes < connection_distance
+            if sum(mask)==0 and ensure_connect:
+                mask[np.argmin(dist_nodes)] = True
             for layer_nid, dist in zip(graph_node_ids[mask], dist_nodes[mask]):
                 if layer_nid not in odlayer_nodes:
                     lid = f"{nid}_{layer_nid}"
@@ -849,6 +855,8 @@ class SharedVehicleLayer(AbstractLayer):
             npos = np.array(odlayer.destinations[nid])
             dist_nodes = _norm(graph_node_pos - npos, axis=1)
             mask = dist_nodes < connection_distance
+            if sum(mask)==0 and ensure_connect:
+                mask[np.argmin(dist_nodes)] = True
             for layer_nid, dist in zip(graph_node_ids[mask], dist_nodes[mask]):
                 if layer_nid not in odlayer_nodes:
                     lid = f"{layer_nid}_{nid}"

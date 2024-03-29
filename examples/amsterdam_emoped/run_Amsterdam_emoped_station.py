@@ -19,7 +19,7 @@ from mnms.demand import CSVDemandManager
 from mnms.flow.MFD import Reservoir, MFDFlowMotor
 from mnms.log import attach_log_file, LOGLEVEL, get_logger, set_all_mnms_logger_level, set_mnms_logger_level
 from mnms.time import Time, Dt
-from mnms.io.graph import load_graph, load_odlayer, save_odlayer
+from mnms.io.graph import load_graph, load_odlayer, save_odlayer, save_transit_links, load_transit_links
 from mnms.travel_decision.logit import LogitDecisionModel
 from mnms.travel_decision.dummy import DummyDecisionModel
 from mnms.travel_decision.custom_decision import CustomDecisionModel
@@ -41,7 +41,7 @@ params = json.load(f)
 
 ## Policy
 # no tax 0 / tax 1 / subsidy 2 / combined 3
-POLICY=3
+POLICY=0
 if POLICY==0:
     tax_solo=0
     subsidy_combined=0
@@ -59,6 +59,8 @@ elif POLICY==3:
     subsidy_combined=1
     out_subdir = 'subsidytax/'
 
+# Load transit links
+LOAD_TRANSIT = True
 
 ## Mobility service parameters
 USE_EMOPED = True
@@ -79,6 +81,7 @@ EMOPED1VEH_OUTFILE = OUTDIR + 'emoped1_veh.csv'
 USERS_OUTFILE = OUTDIR + 'users.csv'
 PATHS_OUTFILE = OUTDIR + "path.csv"
 FLOW_OUTFILE = OUTDIR + "flow.csv"
+fn_transit_links = INDIR + 'transit_links.json'
 
 ## Outputs writing
 LOG_LEVEL = LOGLEVEL.INFO
@@ -262,14 +265,26 @@ def create_supervisor():
     ## MLGraph with all layers, including odlayer, do the connections between ODLayer and other layers directly
     if USE_EMOPED:
         mlgraph = MultiLayerGraph([bus_layer, tram_layer, metro_layer, emoped_layer1],
-            odlayer, DIST_CONNECTION_OD)
+            odlayer)
     else:
         mlgraph = MultiLayerGraph([bus_layer, tram_layer, metro_layer],
-            odlayer, DIST_CONNECTION_OD)
+            odlayer)
 
     # Add the transit links intra and inter layers
-    connect_intra_and_inter_pt_layers(mlgraph)
-    connect_pt_with_emoped_layers(mlgraph)
+    if LOAD_TRANSIT:
+        load_transit_links(mlgraph, fn_transit_links)
+    else:
+        connect_intra_and_inter_pt_layers(mlgraph)
+        connect_pt_with_emoped_layers(mlgraph)
+        #mlgraph.connect_origindestination_layers(DIST_CONNECTION_OD)
+        for l in ["BUSLayer", "TRAMLayer", "METROLayer"]:
+            transit_links = mlgraph.layers[l].connect_origindestination(mlgraph.odlayer, DIST_CONNECTION_OD)
+            mlgraph.add_transit_links(transit_links)
+        l = 'EMOPEDLayer1'
+        transit_links = mlgraph.layers[l].connect_origindestination(mlgraph.odlayer, 2*DIST_CONNECTION_OD)
+        mlgraph.add_transit_links(transit_links)
+
+        save_transit_links(mlgraph, fn_transit_links)
 
     # gather transit links ending in emoped stations
     names_st_no = ['EMOPEDLayer1_'+cl_no for cl_no in df_sta_emoped['closest_node'].values]
