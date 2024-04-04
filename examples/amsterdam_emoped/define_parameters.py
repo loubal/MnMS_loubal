@@ -27,7 +27,7 @@ params = {
 'DIST_CONNECTION_MIX' : 300,
 
 # Travel costs
-'VOT' : 20 / 3600, # EUR/s
+'VOT' : 30 / 3600, # EUR/s
 'FEE_EMOPED_TIME' : 0.33 / 60,  # 33cts/min
 'FEE_EMOPED_BASE' : 1, # EUR
 
