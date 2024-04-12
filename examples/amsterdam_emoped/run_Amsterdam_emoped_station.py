@@ -39,6 +39,9 @@ from mnms.tools.render import draw_roads
 f = open('params.json')
 params = json.load(f)
 
+## Mobility service parameters
+USE_EMOPED = True
+
 ## Policy
 # no tax 0 / tax 1 / subsidy 2 / combined 3
 POLICY=0
@@ -59,11 +62,11 @@ elif POLICY==3:
     subsidy_combined=1
     out_subdir = 'subsidytax/'
 
-# Load transit links
-LOAD_TRANSIT = True
+if not USE_EMOPED:
+    out_subdir = 'noemoped/'
 
-## Mobility service parameters
-USE_EMOPED = True
+# Load transit links
+LOAD_TRANSIT = False
 
 ## Directories and files
 CURRENT_DIR = str(os.path.dirname(os.path.abspath(__file__)))
@@ -158,18 +161,19 @@ def gc_tram(mlgraph, link, costs, VOT=VOT):
 
 def gc_transit(mlgraph, link, costs, VOT=VOT, WALK_SPEED=WALK_SPEED):
     gc = VOT * link.length / WALK_SPEED
-    d_node = link.downstream
-    stations = mlgraph.layers['EMOPEDLayer1'].stations
-    station = None
-    for s in stations:
-        if s['node'] == d_node:
-            station = s['id']
-            break
-    if station:
-        mob_service = mlgraph.layers['EMOPEDLayer1'].mobility_services['emoped1']
-        nb_veh = len(mob_service.available_vehicles(station))
-        if nb_veh == 0:
-            gc += VOT*PENALTY_NO_EMOPED
+    if USE_EMOPED:
+        d_node = link.downstream
+        stations = mlgraph.layers['EMOPEDLayer1'].stations
+        station = None
+        for s in stations:
+            if s['node'] == d_node:
+                station = s['id']
+                break
+        if station:
+            mob_service = mlgraph.layers['EMOPEDLayer1'].mobility_services['emoped1']
+            nb_veh = len(mob_service.available_vehicles(station))
+            if nb_veh == 0:
+                gc += VOT*PENALTY_NO_EMOPED
     return gc
 
 @timed
@@ -280,24 +284,26 @@ def create_supervisor():
         for l in ["BUSLayer", "TRAMLayer", "METROLayer"]:
             transit_links = mlgraph.layers[l].connect_origindestination(mlgraph.odlayer, DIST_CONNECTION_OD)
             mlgraph.add_transit_links(transit_links)
-        l = 'EMOPEDLayer1'
-        transit_links = mlgraph.layers[l].connect_origindestination(mlgraph.odlayer, 2*DIST_CONNECTION_OD)
-        mlgraph.add_transit_links(transit_links)
+        if USE_EMOPED:
+            l = 'EMOPEDLayer1'
+            transit_links = mlgraph.layers[l].connect_origindestination(mlgraph.odlayer, 2*DIST_CONNECTION_OD)
+            mlgraph.add_transit_links(transit_links)
 
         save_transit_links(mlgraph, fn_transit_links)
 
     # gather transit links ending in emoped stations
-    names_st_no = ['EMOPEDLayer1_'+cl_no for cl_no in df_sta_emoped['closest_node'].values]
-    transit_per_end_node_station = dict()
-    for cl_no in names_st_no:
-        transit_per_end_node_station[cl_no] = []
-    for layer_id in ['ODLayer','BUSLayer','TRAMLayer','METROLayer']:
-        for l_id in mlgraph.transitlayer.links[layer_id]['EMOPEDLayer1']:
-            #if l_id in mlgraph.graph.links.keys(): # some links removed after PT creation
-            link = mlgraph.graph.links[l_id]
-            if link.downstream in names_st_no:
-                transit_per_end_node_station[link.downstream].append(l_id)
-    emoped1.transit_per_end_node_station = transit_per_end_node_station
+    if USE_EMOPED:
+        names_st_no = ['EMOPEDLayer1_'+cl_no for cl_no in df_sta_emoped['closest_node'].values]
+        transit_per_end_node_station = dict()
+        for cl_no in names_st_no:
+            transit_per_end_node_station[cl_no] = []
+        for layer_id in ['ODLayer','BUSLayer','TRAMLayer','METROLayer']:
+            for l_id in mlgraph.transitlayer.links[layer_id]['EMOPEDLayer1']:
+                #if l_id in mlgraph.graph.links.keys(): # some links removed after PT creation
+                link = mlgraph.graph.links[l_id]
+                if link.downstream in names_st_no:
+                    transit_per_end_node_station[link.downstream].append(l_id)
+        emoped1.transit_per_end_node_station = transit_per_end_node_station
 
     # Add new cost
     add_new_cost(mlgraph)

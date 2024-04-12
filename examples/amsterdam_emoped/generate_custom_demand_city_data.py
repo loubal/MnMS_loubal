@@ -19,7 +19,7 @@ MODES = ['OV'] # PA, OV, FI -> car, PT, bike
 labels = [mode+PEAK+'_trips' for mode in MODES]
 
 polygon = np.asarray(params['polygon_demand'])
-DIST_MIN = 1e3 # m
+DIST_MIN = 5e2 # m
 
 RANDOM_STATE = 79678
 

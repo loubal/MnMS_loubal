@@ -11,7 +11,7 @@ params = json.load(f)
 fname_in = 'inputs/custom_demand_city_full.csv'
 fname_out = 'inputs/custom_demand_city.csv'
 
-RATIO = 0.08
+RATIO = 0.1
 RANDOM_STATE = 79678
 
 # Retrieve PT stations positions
@@ -41,10 +41,12 @@ for d in destination_points:
 length_eucl = [((o[0]-d[0])**2+(o[1]-d[1])**2)**0.5 for o,d in zip(origin_points, destination_points)]
 
 for i in range(len(df_agents_full)):
-    if dist_o[i]>500 or dist_d[i]>500:
-        weights[i] = 2
-    if length_eucl[i]>1e6:
+    if length_eucl[i] > 7e3:
         weights[i] = 0.7
+    if length_eucl[i] > 1e4:
+        weights[i] = 0.5
+    if dist_o[i]>500 or dist_d[i]>500:
+        weights[i] = 3
 
 nb_sample = int(len(df_agents_full)*RATIO)
 df_agents = df_agents_full.sample(nb_sample, random_state=RANDOM_STATE, weights=weights)
