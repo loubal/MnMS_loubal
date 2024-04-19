@@ -44,7 +44,7 @@ USE_EMOPED = True
 
 ## Policy
 # no tax 0 / tax 1 / subsidy 2 / combined 3
-POLICY=0
+POLICY=3
 if POLICY==0:
     tax_solo=0
     subsidy_combined=0
@@ -66,7 +66,7 @@ if not USE_EMOPED:
     out_subdir = 'noemoped/'
 
 # Load transit links
-LOAD_TRANSIT = False
+LOAD_TRANSIT = True
 
 ## Directories and files
 CURRENT_DIR = str(os.path.dirname(os.path.abspath(__file__)))
@@ -126,7 +126,7 @@ else:
 ## Simulation parameters
 START_TIME = Time('15:59:00')
 END_TIME = Time('19:00:00')
-DT_FLOW = Dt(seconds=60)
+DT_FLOW = Dt(minutes=2)
 AFFECTION_FACTOR = 1
 
 #################
@@ -289,7 +289,8 @@ def create_supervisor():
             transit_links = mlgraph.layers[l].connect_origindestination(mlgraph.odlayer, 2*DIST_CONNECTION_OD)
             mlgraph.add_transit_links(transit_links)
 
-        save_transit_links(mlgraph, fn_transit_links)
+        if USE_EMOPED:
+            save_transit_links(mlgraph, fn_transit_links)
 
     # gather transit links ending in emoped stations
     if USE_EMOPED:

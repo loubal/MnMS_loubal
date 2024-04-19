@@ -18,7 +18,8 @@ RANDOM_STATE = 79678
 mmgraph_pt = load_graph(params["indir"] + params["fn_network"])
 position_stations = []
 for key in mmgraph_pt.roads.stops.keys():
-    position_stations.append(mmgraph_pt.roads.stops[key].absolute_position)
+    if 'METRO' in key or 'TRAM' in key:
+        position_stations.append(mmgraph_pt.roads.stops[key].absolute_position)
 
 ### Take a sample from full demand
 
@@ -45,7 +46,7 @@ for i in range(len(df_agents_full)):
         weights[i] = 0.7
     if length_eucl[i] > 1e4:
         weights[i] = 0.5
-    if dist_o[i]>500 or dist_d[i]>500:
+    if dist_o[i]>1000 or dist_d[i]>1000:
         weights[i] = 3
 
 nb_sample = int(len(df_agents_full)*RATIO)

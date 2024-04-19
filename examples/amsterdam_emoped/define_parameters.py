@@ -15,10 +15,10 @@ params = {
 'fn_emoped_st_init' : "emoped_stations600.csv",
 
 # Vehicles speeds
-'V_EMOPED' : 7.5,
-'V_BUS' : 5.5,
-'V_TRAM' : 8.3,
-'V_METRO' : 13,
+'V_EMOPED' : 7,
+'V_BUS' : 5,
+'V_TRAM' : 8,
+'V_METRO' : 10,
 
 # Transit connection (m)
 'DIST_MAX' : 500,
