@@ -10,13 +10,14 @@ params = {
 'fn_network' : "network_pt_short.json",
 'fn_odlayer' : "od_layer_od.json",
 'fn_transit' : "",
-'fn_demand' : "custom_demand_city.csv",
+#'fn_demand' : "custom_demand_city.csv",
+'fn_demand' : "simplistic_demand_city_full.csv",
 #'fn_emoped_ff_init' : "init_pos_emoped.csv",
-'fn_emoped_st_init' : "emoped_stations600.csv",
+'fn_emoped_st_init' : "emoped_stations30.csv",
 
 # Vehicles speeds
 'V_EMOPED' : 7,
-'V_BUS' : 5,
+'V_BUS' : 3,
 'V_TRAM' : 8,
 'V_METRO' : 10,
 

@@ -44,13 +44,13 @@ USE_EMOPED = True
 
 ## Policy
 # no tax 0 / tax 1 / subsidy 2 / combined 3
-POLICY=3
+POLICY=0
 if POLICY==0:
     tax_solo=0
     subsidy_combined=0
     out_subdir = 'notax/'
 elif POLICY==1:
-    tax_solo=1
+    tax_solo=2
     subsidy_combined=0
     out_subdir = 'tax/'
 elif POLICY==2:
@@ -58,7 +58,7 @@ elif POLICY==2:
     subsidy_combined=1
     out_subdir = 'subsidy/'
 elif POLICY==3:
-    tax_solo=1
+    tax_solo=2
     subsidy_combined=1
     out_subdir = 'subsidytax/'
 
