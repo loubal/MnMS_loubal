@@ -1,3 +1,5 @@
+# Take a random sample of the city travel demand based on OD distance to transit stops
+
 import numpy as np
 import pandas as pd
 import json
@@ -41,6 +43,7 @@ for d in destination_points:
 
 length_eucl = [((o[0]-d[0])**2+(o[1]-d[1])**2)**0.5 for o,d in zip(origin_points, destination_points)]
 
+# Probability depends on distance to PT station
 for i in range(len(df_agents_full)):
     if length_eucl[i] > 7e3:
         weights[i] = 0.7

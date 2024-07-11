@@ -1,8 +1,10 @@
+# Generate a synthetic demand based on city of Amsterdam data
+# All agents riding PT (too large for simulation)
+
 import numpy as np
 import pandas as pd
 import json
 from mnms.tools.geometry import points_in_polygon
-
 
 ### Parameters
 ## Parameters file

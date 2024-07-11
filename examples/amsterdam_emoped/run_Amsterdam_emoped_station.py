@@ -17,20 +17,15 @@ from mnms.mobility_service.vehicle_sharing import VehicleSharingMobilityService
 from mnms.simulation import Supervisor
 from mnms.demand import CSVDemandManager
 from mnms.flow.MFD import Reservoir, MFDFlowMotor
-from mnms.log import attach_log_file, LOGLEVEL, get_logger, set_all_mnms_logger_level, set_mnms_logger_level
+from mnms.log import LOGLEVEL, set_all_mnms_logger_level
 from mnms.time import Time, Dt
-from mnms.io.graph import load_graph, load_odlayer, save_odlayer, save_transit_links, load_transit_links
-from mnms.travel_decision.logit import LogitDecisionModel
-from mnms.travel_decision.dummy import DummyDecisionModel
+from mnms.io.graph import load_graph, load_odlayer, save_transit_links
 from mnms.travel_decision.custom_decision import CustomDecisionModel
 from mnms.tools.observer import CSVUserObserver, CSVVehicleObserver
 from mnms.generation.layers import generate_layer_from_roads
-from mnms.mobility_service.personal_vehicle import PersonalMobilityService
-from mnms.mobility_service.public_transport import PublicTransportMobilityService
-from mnms.io.graph import save_transit_link_odlayer, load_transit_links
+from mnms.io.graph import load_transit_links
 from mnms.vehicles.veh_type import Bike
 from mnms.graph.layers import MultiLayerGraph
-from mnms.tools.render import draw_roads
 
 ##################
 ### Parameters ###

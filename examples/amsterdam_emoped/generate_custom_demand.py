@@ -1,3 +1,6 @@
+# Generate a synthetic demand based on the MATSIM demand
+# not used for the Amsterdam pilot
+
 import numpy as np
 import pandas as pd
 from mnms.tools.geometry import points_in_polygon

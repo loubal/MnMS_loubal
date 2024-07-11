@@ -1,3 +1,6 @@
+# Generate a synthetic demand for which the origin or the destination is close to a point outside of the city center
+# based on city of Amsterdam data
+
 import numpy as np
 import pandas as pd
 import json
